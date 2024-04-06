@@ -7,9 +7,10 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
 import inquirer
+from prettytable import PrettyTable
+
 from ansicolors import Foreground as F
 from ansicolors import Style as S
-from prettytable import PrettyTable
 from viaggiatreno import ViaggiaTrenoAPIWrapper as API
 
 
