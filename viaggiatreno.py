@@ -222,9 +222,9 @@ class ViaggiaTrenoAPIWrapper:
         # There's a numeroTreno which is an int here
         progress = {
             "last_update_time": Utils.from_ms_timestamp(r["oraUltimoRilevamento"]),
-            "last_update_station": s
-            if (s := r["stazioneUltimoRilevamento"]) != "--"
-            else None,
+            "last_update_station": (
+                s if (s := r["stazioneUltimoRilevamento"]) != "--" else None
+            ),
             "train_type": r["tipoTreno"],
             "number": str(r["numeroTreno"]),
             "departure_date": Utils.from_ms_timestamp(r["dataPartenzaTreno"]).date(),
