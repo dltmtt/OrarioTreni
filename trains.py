@@ -79,7 +79,7 @@ def choose_station(station):
 
     if not stations:
         print("Nessuna stazione trovata")
-        return
+        return None
 
     if len(stations) == 1:
         return stations[0]["name"], stations[0]["id"]
@@ -125,12 +125,62 @@ def _get_delay(delay, departed_from_origin, actual_departure_track_known=False):
     return "Non partito"
 
 
+# TODO: pass a train object and udpate it
 def _process_train(train_data, station_id, is_departure):
     train = Train(
         train_data["origin_id"], train_data["number"], train_data["departure_date"]
     )
     train.category = train_data["category"]
+    delay, track, dest_or_origin, time = _get_basic_info(train_data, is_departure)
 
+    progress = API.get_train_progress(
+        train_data["origin_id"], train_data["number"], train_data["departure_date"]
+    )
+
+    train.number_changes = progress["train_number_changes"] if progress else None
+
+    if not progress:
+        approximate_data = [train, dest_or_origin, time.strftime("%H:%M"), delay, track]
+        for i, r in enumerate(approximate_data):
+            approximate_data[i] = F.yellow(r)
+        return approximate_data
+
+    departure, stop, arrival = _get_stops(progress, station_id)
+
+    delay = _get_delay(
+        progress["delay"],
+        progress["departed_from_origin"],
+        departure["actual_departure_track"] is not None,
+    )
+
+    if is_departure:
+        track = _get_track(
+            stop["actual_departure_track"],
+            stop["scheduled_departure_track"],
+            stop["actual_arrival_track"],
+        )
+    track = _get_track(stop["actual_arrival_track"], stop["scheduled_arrival_track"])
+
+    arrived = stop["actual_arrival_time"] is not None
+    departed = stop["actual_departure_time"] is not None
+
+    precise_data = [train, dest_or_origin, time.strftime("%H:%M"), delay, track]
+
+    if arrived and (departed or arrival["actual_arrival_time"]):
+        for i, r in enumerate(precise_data):
+            if i == 0:
+                continue
+            precise_data[i] = S.dim(r)
+    elif arrived and not departed:
+        for i, r in enumerate(precise_data):
+            if i == 0:
+                continue
+            precise_data[i] = S.bold(r)
+
+    return precise_data
+
+
+def _get_basic_info(train_data, is_departure):
     delay = _get_delay(train_data["delay"], train_data["departed_from_origin"])
     track = _get_track(train_data["actual_track"], train_data["scheduled_track"])
 
@@ -141,20 +191,10 @@ def _process_train(train_data, station_id, is_departure):
         dest_or_origin = train_data["origin"]
         time = train_data["arrival_time"]
 
-    # Update with more accurate data
-    progress = API.get_train_progress(
-        train_data["origin_id"], train_data["number"], train_data["departure_date"]
-    )
+    return delay, track, dest_or_origin, time
 
-    train.number_changes = progress["train_number_changes"] if progress else None
 
-    # ViaggiaTreno is not providing real-time updates
-    if not progress:
-        res = [train, dest_or_origin, time.strftime("%H:%M"), delay, track]
-        for i, r in enumerate(res):
-            res[i] = F.yellow(r)
-        return res
-
+def _get_stops(progress, station_id):
     departure = None
     stop = None
     arrival = None
@@ -169,47 +209,13 @@ def _process_train(train_data, station_id, is_departure):
         if s["stop_type"] == "A":
             arrival = s
 
-    # It happens e.g. with train 2965 Saronno -> Milano Centrale
     if not departure:
         departure = progress["stops"][0]
 
     if not arrival:
         arrival = progress["stops"][-1]
 
-    delay = _get_delay(
-        progress["delay"],
-        progress["departed_from_origin"],
-        departure["actual_departure_track"] is not None,
-    )
-
-    if is_departure:
-        track = _get_track(
-            stop["actual_departure_track"],
-            stop["scheduled_departure_track"],
-            stop["actual_arrival_track"],
-        )
-    else:
-        track = _get_track(
-            stop["actual_arrival_track"], stop["scheduled_arrival_track"]
-        )
-
-    arrived = stop["actual_arrival_time"] is not None
-    departed = stop["actual_departure_time"] is not None
-
-    res = [train, dest_or_origin, time.strftime("%H:%M"), delay, track]
-
-    if arrived and (departed or arrival["actual_arrival_time"]):
-        for i, r in enumerate(res):
-            if i == 0:
-                continue
-            res[i] = S.dim(r)
-    elif arrived and not departed:
-        for i, r in enumerate(res):
-            if i == 0:
-                continue
-            res[i] = S.bold(r)
-
-    return res
+    return departure, stop, arrival
 
 
 def show_departures(station_name, station_id, dt, limit=10):
@@ -273,6 +279,7 @@ def show_progress(selected_train):
 
     selected_train.category = p["category"]
     selected_train.number_changes = p["train_number_changes"]
+
     delay = _get_delay(
         p["delay"],
         p["stops"][0]["actual_departure_time"] is not None,
@@ -286,61 +293,65 @@ def show_progress(selected_train):
     )
 
     if p["last_update_station"] and p["last_update_time"]:
-        last_udpate_time = p["last_update_time"].strftime("%H:%M")
+        last_update_time = p["last_update_time"].strftime("%H:%M")
         print(
-            f"\nUltimo aggiornamento: {last_udpate_time} a {p['last_update_station']}"
+            f"\nUltimo aggiornamento: {last_update_time} a {p['last_update_station']}"
         )
 
     for s in p["stops"]:
-        track = _get_track(
-            s["actual_departure_track"] or s["actual_arrival_track"],
-            s["scheduled_departure_track"] or s["scheduled_arrival_track"],
-        )
+        _print_stop_info(s, p["delay"])
 
-        if track:
-            print(f"\n{s['station_name']} · {track}")
+
+def _print_stop_info(s, delay):
+    track = _get_track(
+        s["actual_departure_track"] or s["actual_arrival_track"],
+        s["scheduled_departure_track"] or s["scheduled_arrival_track"],
+    )
+
+    if track:
+        print(f"\n{s['station_name']} · {track}")
+    else:
+        print(f"\n{s['station_name']}")
+
+    if s["stop_type"] in ("A", "F"):
+        _print_arrival_info(s, delay)
+
+    if s["stop_type"] in ("P", "F"):
+        _print_departure_info(s, delay)
+
+
+def _print_arrival_info(s, delay):
+    if actual_arrival_time := s["actual_arrival_time"]:
+        if actual_arrival_time > s["scheduled_arrival_time"]:
+            actual_arrival_time = F.red(actual_arrival_time.strftime("%H:%M"))
         else:
-            print(f"\n{s['station_name']}")
+            actual_arrival_time = F.green(actual_arrival_time.strftime("%H:%M"))
+    arr_str = f"Arr.:\t{s['scheduled_arrival_time'].strftime('%H:%M')}"
+    if actual_arrival_time:
+        arr_str += f"\t{actual_arrival_time}"
+    else:
+        if not s["actual_departure_time"]:
+            arr_time = s["scheduled_arrival_time"] + timedelta(minutes=delay)
+            arr_str += F.yellow(f"\t{arr_time.strftime('%H:%M')}")
+    print(arr_str)
 
-        if s["stop_type"] in ("A", "F"):
-            if actual_arrival_time := s["actual_arrival_time"]:
-                if actual_arrival_time > s["scheduled_arrival_time"]:
-                    actual_arrival_time = F.red(actual_arrival_time.strftime("%H:%M"))
-                else:
-                    actual_arrival_time = F.green(actual_arrival_time.strftime("%H:%M"))
-            arr_str = f"Arr.:\t{s['scheduled_arrival_time'].strftime('%H:%M')}"
-            if actual_arrival_time:
-                arr_str += f"\t{actual_arrival_time}"
-            else:
-                if not s["actual_departure_time"]:
-                    arr_time = s["scheduled_arrival_time"] + timedelta(
-                        minutes=p["delay"]
-                    )
-                    arr_str += F.yellow(f"\t{arr_time.strftime('%H:%M')}")
-            print(arr_str)
 
-        if s["stop_type"] in ("P", "F"):
-            if actual_departure_time := s["actual_departure_time"]:
-                if actual_departure_time > s["scheduled_departure_time"] + timedelta(
-                    seconds=30
-                ):
-                    actual_departure_time = F.red(
-                        actual_departure_time.strftime("%H:%M")
-                    )
-                else:
-                    actual_departure_time = F.green(
-                        actual_departure_time.strftime("%H:%M")
-                    )
-            dep_str = f"Dep.:\t{s['scheduled_departure_time'].strftime('%H:%M')}"
-            if actual_departure_time:
-                dep_str += f"\t{actual_departure_time}"
-            else:
-                if not s["actual_arrival_time"]:
-                    dep_time = s["scheduled_departure_time"] + timedelta(
-                        minutes=p["delay"]
-                    )
-                    dep_str += F.yellow(f"\t{dep_time.strftime('%H:%M')}")
-            print(dep_str)
+def _print_departure_info(s, delay):
+    if actual_departure_time := s["actual_departure_time"]:
+        if actual_departure_time > s["scheduled_departure_time"] + timedelta(
+            seconds=30
+        ):
+            actual_departure_time = F.red(actual_departure_time.strftime("%H:%M"))
+        else:
+            actual_departure_time = F.green(actual_departure_time.strftime("%H:%M"))
+    dep_str = f"Dep.:\t{s['scheduled_departure_time'].strftime('%H:%M')}"
+    if actual_departure_time:
+        dep_str += f"\t{actual_departure_time}"
+    else:
+        if not s["actual_arrival_time"]:
+            dep_time = s["scheduled_departure_time"] + timedelta(minutes=delay)
+            dep_str += F.yellow(f"\t{dep_time.strftime('%H:%M')}")
+    print(dep_str)
 
 
 if __name__ == "__main__":
