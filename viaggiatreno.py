@@ -132,6 +132,8 @@ class ViaggiaTrenoAPIWrapper:
 
     @classmethod
     def get_train_info(cls, train_number):
+        # I should use the endpoint "cercaNumeroTrenoTrenoAutocomplete" (no typo) in case
+        # there are multiple trains with the same number (e.g., REG 2347 from Milano Centrale)
         r = cls._get("cercaNumeroTreno", train_number)
 
         train = {
