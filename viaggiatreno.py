@@ -226,6 +226,7 @@ class ViaggiaTrenoAPIWrapper:
                 s if (s := r["stazioneUltimoRilevamento"]) != "--" else None
             ),
             "train_type": r["tipoTreno"],
+            "category": r["categoria"],
             "number": str(r["numeroTreno"]),
             "departure_date": Utils.from_ms_timestamp(r["dataPartenzaTreno"]).date(),
             "origin_id": r["idOrigine"],
