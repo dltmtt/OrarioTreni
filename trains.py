@@ -48,13 +48,13 @@ class Train:
         self.train_number = train_number
         self.departure_date = departure_date
         self.category = None
-        self.number_changes = None
+        self.number_changes = []
 
     def __str__(self):
         numbers = str(self.train_number)
         if self.number_changes:
             numbers += "/"
-            numbers += "/".join(c["new_train_number"] for c in str(self.number_changes))
+            numbers += "/".join(c["new_train_number"] for c in self.number_changes)
 
         if self.category:
             return f"{self.category} {numbers}"
@@ -278,11 +278,14 @@ def show_progress(selected_train):
         )
         return
 
+    selected_train.category = p["category"]
+    selected_train.number_changes = p["train_number_changes"]
     delay = _get_delay(
         p["delay"],
         p["stops"][0]["actual_departure_time"] is not None,
         p["stops"][0]["actual_departure_track"] is not None,
     )
+
     print(
         f"Treno {selected_train} · {delay}\n"
         f"{p['departure_time'].strftime('%H:%M')} {p['origin']}\n"
