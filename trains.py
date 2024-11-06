@@ -117,14 +117,12 @@ def _get_delay(delay, departed_from_origin, actual_departure_track_known=False):
     if departed_from_origin:
         if delay > 0:
             return F.red(f"{delay:+}")
-        elif delay < 0:
+        if delay < 0:
             return F.green(f"{delay:+}")
-        else:
-            return "In orario"
-    elif actual_departure_track_known:
+        return "In orario"
+    if actual_departure_track_known:
         return "In stazione"
-    else:
-        return "Non partito"
+    return "Non partito"
 
 
 def _process_train(train_data, station_id, is_departure):
@@ -179,8 +177,8 @@ def _process_train(train_data, station_id, is_departure):
         arrival = progress["stops"][-1]
 
     delay = _get_delay(
-        train_data["delay"],
-        train_data["departed_from_origin"],
+        progress["delay"],
+        progress["departed_from_origin"],
         departure["actual_departure_track"] is not None,
     )
 

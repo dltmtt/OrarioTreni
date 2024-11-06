@@ -84,7 +84,9 @@ class ViaggiaTrenoAPIWrapper:
                     "departure_time": Utils.from_ms_timestamp(d["orarioPartenza"]),
                     "departed_from_origin": not d["nonPartito"],
                     "in_station": d["inStazione"],
-                    "delay": int(d["ritardo"]),
+                    "delay": int(
+                        d["ritardo"]
+                    ),  # Not as precise as the delay reported by get_train_progress
                     "warning": d["subTitle"],
                 }
             )
@@ -119,7 +121,9 @@ class ViaggiaTrenoAPIWrapper:
                     "arrival_time": Utils.from_ms_timestamp(a["orarioArrivo"]),
                     "departed_from_origin": not a["nonPartito"],
                     "in_station": a["inStazione"],
-                    "delay": int(a["ritardo"]),
+                    "delay": int(
+                        a["ritardo"]
+                    ),  # Not as precise as the delay reported by get_train_progress
                     "warning": a["subTitle"],
                 }
             )
@@ -236,7 +240,7 @@ class ViaggiaTrenoAPIWrapper:
             "train_number_changes": train_number_changes,
             "departure_time": Utils.from_ms_timestamp(r["orarioPartenza"]),
             "arrival_time": Utils.from_ms_timestamp(r["orarioArrivo"]),
-            "departed": not r["nonPartito"],
+            "departed_from_origin": not r["nonPartito"],
             "in_station": r["inStazione"],
             "delay": int(r["ritardo"]),
             "warning": r["subTitle"] or None,
