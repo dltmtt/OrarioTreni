@@ -26,7 +26,7 @@ class ViaggiaTrenoAPIWrapper:
     @classmethod
     def _get(cls, endpoint, *args):
         url = f'{cls.BASE_URI}/{endpoint}/{"/".join(str(arg) for arg in args)}'
-        r = requests.get(url)
+        r = requests.get(url, timeout=30)
         r.raise_for_status()
 
         return r.json() if "json" in r.headers["Content-Type"] else r.text
@@ -145,8 +145,8 @@ class ViaggiaTrenoAPIWrapper:
         if dt is None:
             dt = datetime.now()
 
-        origin_id = cls._get_enee_code(origin_id)
-        dest_id = cls._get_enee_code(dest_id)
+        origin_id = Utils.get_enee_code(origin_id)
+        dest_id = Utils.get_enee_code(dest_id)
         dt = dt.isoformat()
         r = cls._get("soluzioniViaggioNew", origin_id, dest_id, dt)
 
@@ -290,12 +290,9 @@ class Utils:
 
         return station_id
 
-    # TODO: accept a datetime object as well
     @classmethod
-    def from_ms_timestamp(cls, dt):
-        if dt is None:
+    def from_ms_timestamp(cls, timestamp_ms):
+        if timestamp_ms is None:
             return None
 
-        dt = datetime.fromtimestamp(dt / 1000)
-
-        return dt
+        return datetime.fromtimestamp(timestamp_ms / 1000)
