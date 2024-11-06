@@ -223,7 +223,6 @@ def show_departures(station_name, station_id, dt, limit=10):
     table = PrettyTable()
     table.field_names = ["Treno", "Destinazione", "Partenza", "Ritardo", "Binario"]
 
-    choices = []
     with ThreadPoolExecutor(max_workers=len(departures)) as executor:
         futures = [
             executor.submit(_process_train, t, station_id, True) for t in departures
@@ -232,12 +231,8 @@ def show_departures(station_name, station_id, dt, limit=10):
         for future in futures:
             t = future.result()
             table.add_row(t)
-            choices.append((str(t[0]), t[0]))
 
     print(table)
-
-    choice = inquirer.list_input(message="Seleziona un treno", choices=choices)
-    show_progress(choice)
 
 
 def show_arrivals(station_name, station_id, dt, limit):
