@@ -3,13 +3,17 @@ __author__ = "Matteo Delton"
 
 
 class Foreground:
+    """
+    ANSI color codes for text foreground.
+    """
+
     BLACK = "\x1b[30m"
     RED = "\x1b[31m"
     GREEN = "\x1b[32m"
     YELLOW = "\x1b[33m"
-    BLUE = "\x1b[34m"
-    MAGENTA = "\x1b[35m"
-    CYAN = "\x1b[36m"
+    BLUE = "\x1b[34m"  # This looks like purple
+    MAGENTA = "\x1b[35m"  # This looks like pink
+    CYAN = "\x1b[36m"  # This looks like aqua green
     WHITE = "\x1b[37m"
     DEFAULT = "\x1b[39m"
 
@@ -92,6 +96,10 @@ class Foreground:
 
 
 class Background:
+    """
+    ANSI color codes for text background.
+    """
+
     BLACK = "\x1b[40m"
     RED = "\x1b[41m"
     GREEN = "\x1b[42m"
@@ -181,6 +189,10 @@ class Background:
 
 
 class Style:
+    """
+    ANSI style codes for text.
+    """
+
     BOLD = "\x1b[1m"
     DIM = "\x1b[2m"
     ITALIC = "\x1b[3m"
