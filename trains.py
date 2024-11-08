@@ -20,6 +20,10 @@ from viaggiatreno import ViaggiaTrenoAPIWrapper as API
 
 
 class Train:
+    """
+    Represents a train, which is identified by the triple (number, origin_id, departure_date).
+    """
+
     def __init__(self, number: int, origin_id: str, departure_date: date):
         self.number: int = number
         self.departure_station: str = origin_id
@@ -113,6 +117,10 @@ class Train:
 
 
 class Station:
+    """
+    Represents a station, possibly intended as a stop for a specific train.
+    """
+
     # TODO: remove stops dict
     def __init__(
         self,
