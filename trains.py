@@ -20,14 +20,13 @@ from viaggiatreno import ViaggiaTrenoAPIWrapper as API
 
 
 class Train:
-    def __init__(self, number: str, origin_id: str, departure_date: date):
-        self.number: str = number
+    def __init__(self, number: int, origin_id: str, departure_date: date):
+        self.number: int = number
         self.departure_station: str = origin_id
         self.departure_date: date = departure_date
 
         progress = API.get_train_progress(origin_id, number, departure_date)
         if not progress:
-            print("Non sono disponibili aggiornamenti in tempo reale per questo treno.")
             return
 
         self.last_update_station: str | None = progress.get("last_update_station")
@@ -201,10 +200,13 @@ class Station:
         print(table)
 
     def process_train(self, train: Train, checking_for_departures: bool) -> list:
-        for stop in train.stops:
-            if stop.prefixed_enee_code == self.prefixed_enee_code:
-                station = stop
-                break
+        station = next(
+            (s for s in train.stops if s.prefixed_enee_code == self.prefixed_enee_code),
+            None,
+        )
+
+        if station is None:
+            raise ValueError("Non-real-time updates not implemented yet")
 
         if checking_for_departures:
             station_name = train.destination.name
