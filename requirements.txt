@@ -1,3 +1,0 @@
-inquirer
-prettytable
-requests

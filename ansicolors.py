@@ -1,7 +1,3 @@
-__version__ = "0.1"
-__author__ = "Matteo Delton"
-
-
 class Foreground:
     """
     ANSI color codes for text foreground.

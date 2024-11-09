@@ -1,6 +1,3 @@
-__version__ = "0.1"
-__author__ = "Matteo Delton"
-
 from datetime import date, datetime, time
 from typing import cast
 
