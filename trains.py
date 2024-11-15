@@ -11,24 +11,23 @@ from datetime import date, datetime, time, timedelta
 import inquirer
 from prettytable import PrettyTable
 
-from ansicolors import Foreground as F
-from ansicolors import Style as S
-from viaggiatreno import ViaggiaTrenoAPIWrapper as API
-
-# pylint: disable=fixme, missing-class-docstring
+from ansicolors import Foreground, Style
+from viaggiatreno import ViaggiaTrenoAPIWrapper
 
 
 class Train:
-    """
-    Represents a train, which is identified by the triple (number, origin_id, departure_date).
-    """
+    """A train is identified by the triple (number, origin_id, departure_date)."""
 
-    def __init__(self, number: int, origin_id: str, departure_date: date):
+    def __init__(self, number: int, origin_id: str, departure_date: date) -> None:
         self.number: int = number
         self.departure_station: str = origin_id
         self.departure_date: date = departure_date
 
-        progress = API.get_train_progress(origin_id, number, departure_date)
+        progress = ViaggiaTrenoAPIWrapper.get_train_progress(
+            origin_id,
+            number,
+            departure_date,
+        )
         if not progress:
             return
 
@@ -50,7 +49,7 @@ class Train:
         self.departed_from_origin: bool = progress["departed_from_origin"]
         self.delay: int = progress["delay"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         numbers = str(self.number)
         if self.number_changes:
             numbers += "/"
@@ -60,20 +59,20 @@ class Train:
             return f"{self.category} {numbers}"
         return f"{numbers}"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Train({self.number}, {self.departure_station}, {self.departure_date})"
 
     def get_formatted_delay(self) -> str:
         # TODO: decide whether to use self.departed_from_origin or self.origin.departed
         if self.origin.departed:
             if self.delay > 0:
-                return F.red(f"{self.delay:+}")
+                return Foreground.red(f"{self.delay:+}")
             if self.delay < 0:
-                return F.green(f"{self.delay:+}")
+                return Foreground.green(f"{self.delay:+}")
             return "In orario"
 
         if self.origin.actual_departure_track is not None:
-            return "In stazione"
+            return "Pronto a partire"  # In origin station, not departed yet
 
         return "Non partito"
 
@@ -81,18 +80,17 @@ class Train:
         print(
             f"Treno {self} · {self.get_formatted_delay()}\n"
             f"{self.departure_time.strftime('%H:%M')} {self.origin.name}\n"
-            f"{self.arrival_time.strftime('%H:%M')} {self.destination.name}"
+            f"{self.arrival_time.strftime('%H:%M')} {self.destination.name}",
         )
 
         if self.last_update_station is not None and self.last_update_time is not None:
+            last_update_time = self.last_update_time.strftime("%H:%M")
             print(
-                f"{S.DIM}Ultimo aggiornamento alle {self.last_update_time.strftime('%H:%M')}"
-                f" a {self.last_update_station}{S.NORMAL}"
+                f"{Style.DIM}Ultimo aggiornamento alle {last_update_time}"
+                f" a {self.last_update_station}{Style.NORMAL}",
             )
         else:
-            print(
-                f"{S.DIM}Non sono disponibili aggiornamenti per questo treno.{S.NORMAL}"
-            )
+            print(f"{Style.DIM}Nessun aggiornamento disponibile.{Style.NORMAL}")
 
         for stop in self.stops:
             track = stop.get_formatted_track()
@@ -105,20 +103,18 @@ class Train:
             if stop.type in ("P", "F"):
                 print(
                     f"Dep.:\t{stop.scheduled_departure_time.strftime("%H:%M")}"
-                    f"\t{stop.get_formatted_time(self.delay, True)}"
+                    f"\t{stop.get_formatted_time(self.delay, check_departures=True)}",
                 )
 
             if stop.type in ("A", "F"):
                 print(
                     f"Arr.:\t{stop.scheduled_arrival_time.strftime('%H:%M')}"
-                    f"\t{stop.get_formatted_time(self.delay, False)}"
+                    f"\t{stop.get_formatted_time(self.delay, check_departures=False)}",
                 )
 
 
 class Station:
-    """
-    Represents a station, possibly intended as a stop for a specific train.
-    """
+    """Represents a station, possibly intended as a stop for a specific train."""
 
     # TODO: remove stops dict
     def __init__(
@@ -127,7 +123,7 @@ class Station:
         name: str,
         train: Train | None = None,
         stops: dict | None = None,
-    ):
+    ) -> None:
         self.prefixed_enee_code: str = prefixed_enee_code
         self.name: str = name
 
@@ -154,22 +150,32 @@ class Station:
         self.actual_arrival_time: datetime = stop.get("actual_arrival_time")
         self.scheduled_arrival_time: datetime = stop.get("scheduled_arrival_time")
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Station({self.prefixed_enee_code}, {self.name})"
 
     def show_timetable(
-        self, timetable_datetime=datetime.now(), limit=10, is_departure=True
-    ):
-        print(S.bold(f"{"Partenze da" if is_departure else "Arrivi a"} {self.name}"))
+        self,
+        timetable_datetime: datetime | None = None,
+        limit: int = 10,
+        *,
+        is_departure: bool = True,
+    ) -> None:
+        if timetable_datetime is None:
+            timetable_datetime = datetime.now()
+        print(
+            Style.bold(f"{"Partenze da" if is_departure else "Arrivi a"} {self.name}"),
+        )
 
         table = PrettyTable()
 
         if is_departure:
-            trains: list[dict] = API.get_departures(
-                self.prefixed_enee_code, timetable_datetime, limit
+            trains: list[dict] = ViaggiaTrenoAPIWrapper.get_departures(
+                self.prefixed_enee_code,
+                timetable_datetime,
+                limit,
             )
             if not trains:
                 print("Nessun treno in partenza nei prossimi 90 minuti.")
@@ -182,8 +188,10 @@ class Station:
                 "Binario",
             ]
         else:
-            trains: list[dict] = API.get_arrivals(
-                self.prefixed_enee_code, timetable_datetime, limit
+            trains: list[dict] = ViaggiaTrenoAPIWrapper.get_arrivals(
+                self.prefixed_enee_code,
+                timetable_datetime,
+                limit,
             )
             if not trains:
                 print("Nessun treno in arrivo nei prossimi 90 minuti.")
@@ -195,7 +203,7 @@ class Station:
                 executor.submit(
                     self.process_train,
                     Train(train["number"], train["origin_id"], train["departure_date"]),
-                    is_departure,
+                    check_departures=is_departure,
                 )
                 for train in trains
             ]
@@ -206,31 +214,31 @@ class Station:
 
         print(table)
 
-    def process_train(self, train: Train, checking_for_departures: bool) -> list:
+    def process_train(self, train: Train, *, check_departures: bool) -> list:
         station = next(
             (s for s in train.stops if s.prefixed_enee_code == self.prefixed_enee_code),
             None,
         )
 
         if station is None:
-            raise ValueError("Non-real-time updates not implemented yet")
+            msg = "Non-real-time updates not implemented yet"
+            raise NotImplementedError(msg)
 
-        if checking_for_departures:
+        if check_departures:
             station_name = train.destination.name
             scheduled_time = station.scheduled_departure_time.strftime("%H:%M")
         else:
             station_name = train.origin.name
             scheduled_time = station.scheduled_arrival_time.strftime("%H:%M")
 
-        precise_data = [
+        # TODO: Should I get the delay for this specific station?
+        return [
             train,
             station_name,
             scheduled_time,
-            train.get_formatted_delay(),  # TODO: Should get the delay for this specific station?
+            train.get_formatted_delay(),
             station.get_formatted_track(),
         ]
-
-        return precise_data
 
     def get_formatted_track(self) -> str:
         track = self.actual_departure_track or self.actual_arrival_track
@@ -238,65 +246,71 @@ class Station:
 
         if track:
             if track == scheduled_track:
-                track = F.blue(track)
+                track = Foreground.blue(track)
             elif scheduled_track:
-                track = F.magenta(track)
+                track = Foreground.magenta(track)
             else:
-                track = F.cyan(track)
+                track = Foreground.cyan(track)
         else:
             track = scheduled_track
 
         if (self.arrived or self.train.origin.actual_departure_time) and (
             self.departed or self.train.destination.actual_arrival_time
         ):
-            track = S.dim(track)
+            track = Style.dim(track)
         elif self.arrived and not self.departed:
-            track = S.bold(track)
+            track = Style.bold(track)
+
+        if track is None:
+            return "N/A"
 
         return track
 
     def get_formatted_time(
-        self, delay: int, checking_for_departures: bool
+        self,
+        delay: int,
+        *,
+        check_departures: bool,
     ) -> str | None:
         actual_time = (
-            self.actual_departure_time
-            if checking_for_departures
-            else self.actual_arrival_time
+            self.actual_departure_time if check_departures else self.actual_arrival_time
         )
         scheduled_time = (
             self.scheduled_departure_time
-            if checking_for_departures
+            if check_departures
             else self.scheduled_arrival_time
         )
 
         if actual_time:
             if actual_time > scheduled_time + timedelta(seconds=30):
-                formatted_time = F.red(actual_time.strftime("%H:%M"))
+                formatted_time = Foreground.red(actual_time.strftime("%H:%M"))
             else:
-                formatted_time = F.green(actual_time.strftime("%H:%M"))
+                formatted_time = Foreground.green(actual_time.strftime("%H:%M"))
+        elif delay > 0:
+            formatted_time = Foreground.yellow(
+                (scheduled_time + timedelta(minutes=delay)).strftime("%H:%M"),
+            )
         else:
-            if delay > 0:
-                formatted_time = F.yellow(
-                    (scheduled_time + timedelta(minutes=delay)).strftime("%H:%M")
-                )
-            else:
-                formatted_time = scheduled_time.strftime("%H:%M")
+            formatted_time = scheduled_time.strftime("%H:%M")
 
         return formatted_time
 
 
-def show_statistics():
-    s = API.get_statistics()
+def show_statistics() -> None:
+    s = ViaggiaTrenoAPIWrapper.get_statistics()
 
+    last_update = s["last_update"].strftime("%T")
     print(
         f"Treni in circolazione da mezzanotte: {s['trains_since_midnight']}\n"
         f"Treni in circolazione ora: {s['trains_running']}\n"
-        f"{S.DIM}Ultimo aggiornamento: {s['last_update'].strftime('%T')}{S.NORMAL}"
+        f"{Style.DIM}Ultimo aggiornamento: {last_update}{Style.NORMAL}",
     )
 
 
 def choose_station(station_prefix: str) -> Station | None:
-    stations: list[dict[str, str]] = API.get_stations_matching_prefix(station_prefix)
+    stations: list[dict[str, str]] = (
+        ViaggiaTrenoAPIWrapper.get_stations_matching_prefix(station_prefix)
+    )
 
     if not stations:
         return None
@@ -306,12 +320,13 @@ def choose_station(station_prefix: str) -> Station | None:
 
     guesses = [(s["name"], s["id"]) for s in stations]
     chosen_station_id = inquirer.list_input(
-        message="Seleziona la stazione", choices=guesses
+        message="Seleziona la stazione",
+        choices=guesses,
     )
 
     return Station(
         chosen_station_id,
-        next((s["name"] for s in stations if s["id"] == chosen_station_id)),
+        next(s["name"] for s in stations if s["id"] == chosen_station_id),
     )
 
 
@@ -319,7 +334,10 @@ if __name__ == "__main__":
     ap = ArgumentParser(description="Get information about trains in Italy")
 
     ap.add_argument(
-        "-v", "--version", action="version", version=f"%(prog)s {__version__}"
+        "-v",
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     ap.add_argument(
         "-d",
@@ -395,8 +413,8 @@ if __name__ == "__main__":
 
     if args.log_level not in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
         print(
-            f"Invalid log level: {F.red(args.log_level)} "
-            "(valid values are: DEBUG, INFO, WARNING, ERROR, CRITICAL)."
+            f"Invalid log level: {Foreground.red(args.log_level)} "
+            "(valid values are: DEBUG, INFO, WARNING, ERROR, CRITICAL).",
         )
 
         sys.exit(1)
@@ -406,25 +424,25 @@ if __name__ == "__main__":
     if args.stats:
         show_statistics()
 
-    search_date: date = datetime.strptime(args.date, "%Y-%m-%d").date()
-    search_time: time = datetime.strptime(args.time, "%H:%M").time()
+    search_date: date = datetime.strptime(args.date + " +0000", "%Y-%m-%d %z").date()
+    search_time: time = datetime.strptime(args.time + " +0000", "%H:%M %z").timetz()
     search_datetime: datetime = datetime.combine(search_date, search_time)
 
     if args.departures:
         if (queried_station := choose_station(args.departures)) is None:
             print("Nessuna stazione trovata", file=sys.stderr)
             sys.exit(1)
-        queried_station.show_timetable(search_datetime, args.limit, True)
+        queried_station.show_timetable(search_datetime, args.limit, is_departure=True)
 
     if args.arrivals:
         if (queried_station := choose_station(args.arrivals)) is None:
             print("Nessuna stazione trovata", file=sys.stderr)
             sys.exit(1)
-        queried_station.show_timetable(search_datetime, args.limit, False)
+        queried_station.show_timetable(search_datetime, args.limit, is_departure=False)
 
     if args.train_number:
         # TODO: handle multiple trains with the same number
-        train_info: dict = API.get_train_info(args.train_number)
+        train_info: dict = ViaggiaTrenoAPIWrapper.get_train_info(args.train_number)
         train_to_monitor: Train = Train(
             train_info["number"],
             train_info["departure_station_id"],

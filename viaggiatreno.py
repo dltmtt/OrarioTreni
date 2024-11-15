@@ -1,5 +1,4 @@
 from datetime import date, datetime, time
-from typing import cast
 
 import requests
 
@@ -22,7 +21,7 @@ class ViaggiaTrenoAPIWrapper:
     BASE_URI = "http://www.viaggiatreno.it/infomobilita/resteasy/viaggiatreno"
 
     @classmethod
-    def _get(cls, endpoint: str, *args) -> dict | str:
+    def _get(cls, endpoint: str, *args: str) -> dict | str:
         url = f'{cls.BASE_URI}/{endpoint}/{"/".join(str(arg) for arg in args)}'
         r = requests.get(url, timeout=30)
         r.raise_for_status()
@@ -30,77 +29,72 @@ class ViaggiaTrenoAPIWrapper:
         return r.json() if "json" in r.headers["Content-Type"] else r.text
 
     @classmethod
-    def get_statistics(cls):
+    def get_statistics(cls) -> dict:
         """Return statistics about trains for today."""
         timestamp = int(datetime.now().timestamp() * 1000)
-        r = cast(dict, cls._get("statistiche", timestamp))
+        r = cls._get("statistiche", timestamp)
 
-        statistics = {
+        return {
             "trains_since_midnight": r.get("treniGiorno"),
             "trains_running": r.get("treniCircolanti"),
             "last_update": Utils.datetime_from_ms_timestamp(
-                r.get("ultimoAggiornamento")
+                r.get("ultimoAggiornamento"),
             ),
         }
-
-        return statistics
 
     @classmethod
     def get_stations_matching_prefix(cls, prefix: str) -> list[dict[str, str]]:
         """Return a list of stations starting with the given text."""
-        r = cast(dict, cls._get("cercaStazione", prefix))
+        r = cls._get("cercaStazione", prefix)
 
-        stations = []
-        for s in r:
-            stations.append({"name": s.get("nomeLungo"), "id": s.get("id")})
-
-        return stations
+        return [{"name": s.get("nomeLungo"), "id": s.get("id")} for s in r]
 
     @classmethod
     def get_departures(
-        cls, station_id: str, dt: datetime = datetime.now(), limit=10
+        cls,
+        station_id: str,
+        dt: datetime | None = None,
+        limit: int = 10,
     ) -> list[dict]:
         """Return the departures from a station at a certain time."""
+        if dt is None:
+            dt = datetime.now()
+
         dep_time = Utils.to_string(dt)
-        r = cast(list[dict], cls._get("partenze", station_id, dep_time))
+        r = cls._get("partenze", station_id, dep_time)
 
-        departures = []
-        for i, d in enumerate(r):
-            if i == limit:
-                break
-
-            departures.append(
-                {
-                    "category": d["categoriaDescrizione"].strip(),
-                    "number": d["numeroTreno"],
-                    "departure_date": Utils.date_from_ms_timestamp(
-                        d["dataPartenzaTreno"]
-                    ),
-                    "origin_id": d["codOrigine"],
-                    "destination": d["destinazione"],
-                    "scheduled_track": d["binarioProgrammatoPartenzaDescrizione"],
-                    "actual_track": d["binarioEffettivoPartenzaDescrizione"],
-                    "departure_time": Utils.datetime_from_ms_timestamp(
-                        d["orarioPartenza"]
-                    ),
-                    "departed_from_origin": not d["nonPartito"],
-                    "in_station": d["inStazione"],
-                    "delay": int(
-                        d["ritardo"]
-                    ),  # Not as precise as the delay reported by get_train_progress
-                    "warning": d["subTitle"],
-                }
-            )
-
-        return departures
+        return [
+            {
+                "category": d["categoriaDescrizione"].strip(),
+                "number": d["numeroTreno"],
+                "departure_date": Utils.date_from_ms_timestamp(d["dataPartenzaTreno"]),
+                "origin_id": d["codOrigine"],
+                "destination": d["destinazione"],
+                "scheduled_track": d["binarioProgrammatoPartenzaDescrizione"],
+                "actual_track": d["binarioEffettivoPartenzaDescrizione"],
+                "departure_time": Utils.datetime_from_ms_timestamp(d["orarioPartenza"]),
+                "departed_from_origin": not d["nonPartito"],
+                "in_station": d["inStazione"],
+                "delay": int(d["ritardo"]),
+                "warning": d["subTitle"],
+            }
+            for i, d in enumerate(r)
+            if i < limit
+        ]
 
     @classmethod
     def get_arrivals(
-        cls, station_id: str, dt: datetime = datetime.now(), limit=10
+        cls,
+        station_id: str,
+        dt: datetime | None = None,
+        limit: int = 10,
     ) -> list[dict]:
         """Return the arrivals to a station at a certain time."""
+        if dt is None:
+            dt = datetime.now()
+
         arr_time = Utils.to_string(dt)
-        r = cast(list[dict], cls._get("arrivi", station_id, arr_time))
+        r = cls._get("arrivi", station_id, arr_time)
 
         arrivals = []
         for i, a in enumerate(r):
@@ -112,7 +106,7 @@ class ViaggiaTrenoAPIWrapper:
                     "category": a["categoriaDescrizione"].strip(),
                     "number": a["numeroTreno"],
                     "departure_date": Utils.date_from_ms_timestamp(
-                        a["dataPartenzaTreno"]
+                        a["dataPartenzaTreno"],
                     ),
                     "origin_id": a["codOrigine"],
                     "origin": a["origine"],
@@ -122,44 +116,47 @@ class ViaggiaTrenoAPIWrapper:
                     "departed_from_origin": not a["nonPartito"],
                     "in_station": a["inStazione"],
                     "delay": int(
-                        a["ritardo"]
+                        a["ritardo"],
                     ),  # Not as precise as the delay reported by get_train_progress
                     "warning": a["subTitle"],
-                }
+                },
             )
 
         return arrivals
 
     @classmethod
     def get_train_info(cls, train_number: int) -> dict:
-        # I should use the endpoint "cercaNumeroTrenoTrenoAutocomplete" (no typo) in case
-        # there are multiple trains with the same number (e.g., REG 2347 from Milano Centrale)
-        r = cast(dict, cls._get("cercaNumeroTreno", train_number))
+        # I should use the endpoint "cercaNumeroTrenoTrenoAutocomplete" (no typo)
+        # in case there are multiple trains with the same number (e.g., REG 2347
+        # from Milano Centrale)
+        r = cls._get("cercaNumeroTreno", train_number)
 
-        train = {
+        return {
             "number": r.get("numeroTreno"),
             "departure_date": Utils.date_from_ms_timestamp(r.get("dataPartenza")),
             "departure_station_id": r.get("codLocOrig"),
             "departure_station": r.get("descLocOrig"),
         }
 
-        return train
-
     @classmethod
     def get_travel_solutions(
-        cls, origin_id: str, dest_id: str, dt: datetime = datetime.now(), limit=10
+        cls,
+        origin_id: str,
+        dest_id: str,
+        dt: datetime | None = None,
+        limit: int = 10,
     ) -> dict:
         """Return travel solutions between two stations."""
+        if dt is None:
+            dt = datetime.now(datetime.now())
+
         origin_enee_code = Utils.get_enee_code(origin_id)
         destination_enee_code = Utils.get_enee_code(dest_id)
-        r = cast(
-            dict,
-            cls._get(
-                "soluzioniViaggioNew",
-                origin_enee_code,
-                destination_enee_code,
-                dt.isoformat(),
-            ),
+        r = cls._get(
+            "soluzioniViaggioNew",
+            origin_enee_code,
+            destination_enee_code,
+            dt.isoformat(),
         )
 
         solutions = {
@@ -172,18 +169,17 @@ class ViaggiaTrenoAPIWrapper:
             if i == limit:
                 break
 
-            vehicles = []
-            for v in s["vehicles"]:
-                vehicles.append(
-                    {
-                        "origin": v["origine"],
-                        "destination": v["destinazione"],
-                        "departure_time": datetime.fromisoformat(v["orarioPartenza"]),
-                        "arrival_time": datetime.fromisoformat(v["orarioArrivo"]),
-                        "category": v["categoriaDescrizione"],
-                        "number": v["numeroTreno"],
-                    }
-                )
+            vehicles = [
+                {
+                    "origin": v["origine"],
+                    "destination": v["destinazione"],
+                    "departure_time": datetime.fromisoformat(v["orarioPartenza"]),
+                    "arrival_time": datetime.fromisoformat(v["orarioArrivo"]),
+                    "category": v["categoriaDescrizione"],
+                    "number": v["numeroTreno"],
+                }
+                for v in s["vehicles"]
+            ]
 
             solutions["solutions"].append({"vehicles": vehicles})
 
@@ -191,59 +187,59 @@ class ViaggiaTrenoAPIWrapper:
 
     @classmethod
     def get_train_progress(
-        cls, origin_id: str, train_number: int, dep_date: date
+        cls,
+        origin_id: str,
+        train_number: int,
+        dep_date: date,
     ) -> dict | None:
         """Return the progress of a train."""
         dep_date_ts: int = Utils.to_ms_date_timestamp(dep_date)
-        r = cast(dict, cls._get("andamentoTreno", origin_id, train_number, dep_date_ts))
+        r = cls._get("andamentoTreno", origin_id, train_number, dep_date_ts)
 
         if not r:
             return None
 
-        train_number_changes = []
-        for c in r["cambiNumero"]:
-            train_number_changes.append(
-                {"new_train_number": c["nuovoNumeroTreno"], "station": c["stazione"]}
-            )
+        train_number_changes = [
+            {"new_train_number": c["nuovoNumeroTreno"], "station": c["stazione"]}
+            for c in r["cambiNumero"]
+        ]
 
-        stops = []
-        for s in r["fermate"]:
-            actual_arrival_time = Utils.datetime_from_ms_timestamp(s["arrivoReale"])
-            actual_departure_time = Utils.datetime_from_ms_timestamp(s["partenzaReale"])
-
-            stops.append(
-                {
-                    "id": s.get("id"),
-                    "name": s.get("stazione"),
-                    "stop_type": s.get("tipoFermata"),
-                    "actual_arrival_time": actual_arrival_time,
-                    "actual_departure_time": actual_departure_time,
-                    "arrived": actual_arrival_time is not None,
-                    "departed": actual_departure_time is not None,
-                    "scheduled_arrival_time": Utils.datetime_from_ms_timestamp(
-                        s.get("arrivo_teorico")
-                    ),
-                    "scheduled_departure_time": Utils.datetime_from_ms_timestamp(
-                        s.get("partenza_teorica")
-                    ),
-                    "scheduled_arrival_track": s.get(
-                        "binarioProgrammatoArrivoDescrizione"
-                    ),
-                    "actual_arrival_track": s.get("binarioEffettivoArrivoDescrizione"),
-                    "scheduled_departure_track": s.get(
-                        "binarioProgrammatoPartenzaDescrizione"
-                    ),
-                    "actual_departure_track": s.get(
-                        "binarioEffettivoPartenzaDescrizione"
-                    ),
-                }
-            )
+        stops = [
+            {
+                "id": s.get("id"),
+                "name": s.get("stazione"),
+                "stop_type": s.get("tipoFermata"),
+                "actual_arrival_time": Utils.datetime_from_ms_timestamp(
+                    s["arrivoReale"],
+                ),
+                "actual_departure_time": Utils.datetime_from_ms_timestamp(
+                    s["partenzaReale"],
+                ),
+                "arrived": Utils.datetime_from_ms_timestamp(s["arrivoReale"])
+                is not None,
+                "departed": Utils.datetime_from_ms_timestamp(s["partenzaReale"])
+                is not None,
+                "scheduled_arrival_time": Utils.datetime_from_ms_timestamp(
+                    s.get("arrivo_teorico"),
+                ),
+                "scheduled_departure_time": Utils.datetime_from_ms_timestamp(
+                    s.get("partenza_teorica"),
+                ),
+                "scheduled_arrival_track": s.get("binarioProgrammatoArrivoDescrizione"),
+                "actual_arrival_track": s.get("binarioEffettivoArrivoDescrizione"),
+                "scheduled_departure_track": s.get(
+                    "binarioProgrammatoPartenzaDescrizione",
+                ),
+                "actual_departure_track": s.get("binarioEffettivoPartenzaDescrizione"),
+            }
+            for s in r["fermate"]
+        ]
 
         # Check fermateSoppresse, tipoTreno and motivoRitardoPrevalente
         # There's a numeroTreno which is an int here
-        progress = {
+        return {
             "last_update_time": Utils.datetime_from_ms_timestamp(
-                r.get("oraUltimoRilevamento")
+                r.get("oraUltimoRilevamento"),
             ),
             "last_update_station": (
                 s if (s := r.get("stazioneUltimoRilevamento")) != "--" else None
@@ -267,16 +263,13 @@ class ViaggiaTrenoAPIWrapper:
             "stops": stops,
         }
 
-        return progress
-
 
 class Utils:
     """A collection of utility functions."""
 
     @classmethod
     def to_ms_date_timestamp(cls, date_to_convert: date | datetime | int | str) -> int:
-        """Return the timestamp of the given date at midnight in
-        milliseconds.
+        """Return the timestamp of the given date at midnight in milliseconds.
 
         The date can be a date, a datetime, a timestamp in milliseconds
         or a string in ISO 8601 format.
@@ -292,9 +285,11 @@ class Utils:
             try:
                 dt = datetime.fromisoformat(date_to_convert)
             except ValueError:
-                raise ValueError(f"Invalid date format: {date_to_convert}") from None
+                msg = f"Invalid date format: {date_to_convert}"
+                raise ValueError(msg) from None
         else:
-            raise ValueError(f"Unsupported date type: {type(date_to_convert)}")
+            msg = f"Unsupported date type: {type(date_to_convert)}"
+            raise TypeError(msg)
 
         return int(dt.timestamp() * 1000)
 
@@ -309,14 +304,17 @@ class Utils:
 
     @classmethod
     def get_enee_code(cls, station_id: str) -> int:
-        if len(station_id) == 6:
+        if len(station_id) == 6:  # noqa: PLR2004
             enee_code = int(station_id.lstrip("S"))
-        elif len(station_id) == 8:
+        elif len(station_id) == 8:  # noqa: PLR2004
             enee_code = int(station_id.lstrip("830"))
         else:
             enee_code = int(station_id)
 
-        assert 0 <= enee_code <= 99999, "Station ID must be a 5 digit integer"
+        if not (0 <= enee_code <= 99999):  # noqa: PLR2004
+            msg = "Station ID must be a 5 digit integer"
+            raise ValueError(msg)
+
         return enee_code
 
     @classmethod
