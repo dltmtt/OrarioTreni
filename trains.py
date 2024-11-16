@@ -35,8 +35,9 @@ class Train:
         self.origin_enee_code: int = origin_enee_code
         self.departure_date: date = departure_date
 
-        progress = vt.get_train_progress(origin_enee_code, number, departure_date)
-        if not progress:
+        try:
+            progress = vt.get_train_progress(origin_enee_code, number, departure_date)
+        except vt.HTTPException:
             return
 
         self.last_update_station: str | None = progress.last_update_station

@@ -156,7 +156,7 @@ def get_stations_matching_prefix(prefix: str) -> list[BaseStation]:
 
     if not r:
         raise HTTPException(
-            status_code=404,
+            status_code=204,
             detail="No stations matching the given prefix could be found",
         )
 
@@ -241,7 +241,7 @@ def get_trains_with_number(train_number: int) -> list[TrainInfo]:
 
     if not r:
         raise HTTPException(
-            status_code=404,
+            status_code=204,
             detail="No trains with the given number could be found",
         )
 
@@ -259,12 +259,12 @@ def get_trains_with_number(train_number: int) -> list[TrainInfo]:
     ]
 
 
-@app.get("/trains", response_model=TrainProgress | None, tags=["trains"])
+@app.get("/trains", response_model=TrainProgress, tags=["trains"])
 def get_train_progress(
     origin_enee_code: int,
     train_number: int,
     departure_date: date,
-) -> TrainProgress | None:
+) -> TrainProgress:
     """Get the progress of a train, including its stops and delays."""
     dep_date_ts: int = to_ms_date_timestamp(departure_date)
     r = get(
@@ -275,7 +275,10 @@ def get_train_progress(
     )
 
     if not r:
-        return None
+        raise HTTPException(
+            status_code=204,
+            detail="No train with the given number and departure date could be found",
+        )
 
     return TrainProgress(
         last_update_time=to_datetime(r["oraUltimoRilevamento"]),
