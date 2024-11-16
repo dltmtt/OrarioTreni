@@ -110,13 +110,13 @@ class Train:
                 print(f"\n{stop.name} · {track}")
             else:
                 print(f"\n{stop.name}")
-            if stop.type in ("P", "F"):
+            if stop.type in ("departure", "intermediate"):
                 print(
                     f"Dep.:\t{stop.scheduled_departure_time.strftime('%H:%M')}"
                     f"\t{stop.get_formatted_time(self.delay, check_departures=True)}",
                 )
 
-            if stop.type in ("A", "F"):
+            if stop.type in ("arrival", "intermediate"):
                 print(
                     f"Arr.:\t{stop.scheduled_arrival_time.strftime('%H:%M')}"
                     f"\t{stop.get_formatted_time(self.delay, check_departures=False)}",
@@ -320,9 +320,10 @@ def show_statistics() -> None:
 
 
 def choose_station(station_prefix: str) -> Station | None:
-    stations: list[BaseStation] = vt.get_stations_matching_prefix(station_prefix)
-
-    if not stations:
+    try:
+        stations: list[BaseStation] = vt.get_stations_matching_prefix(station_prefix)
+    except vt.HTTPException as e:
+        print(e, file=sys.stderr)
         return None
 
     if len(stations) == 1:
@@ -439,13 +440,11 @@ if __name__ == "__main__":
 
     if args.departures:
         if (queried_station := choose_station(args.departures)) is None:
-            print("Nessuna stazione trovata", file=sys.stderr)
             sys.exit(1)
         queried_station.show_timetable(search_datetime, args.limit, is_departure=True)
 
     if args.arrivals:
         if (queried_station := choose_station(args.arrivals)) is None:
-            print("Nessuna stazione trovata", file=sys.stderr)
             sys.exit(1)
         queried_station.show_timetable(search_datetime, args.limit, is_departure=False)
 

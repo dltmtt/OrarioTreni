@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
 
 import requests
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 app = FastAPI(
@@ -129,6 +129,12 @@ def get_stats() -> Stats:
 def get_stations_matching_prefix(prefix: str) -> list[BaseStation]:
     """Return a list of stations starting with the given text."""
     r = _get("cercaStazione", prefix)
+
+    if not r:
+        raise HTTPException(
+            status_code=404,
+            detail="No stations matching the given prefix could be found",
+        )
 
     return [
         BaseStation(name=s["nomeLungo"], enee_code=get_unprefixed_enee_code(s["id"]))
@@ -301,7 +307,7 @@ def get_train_progress(
             {
                 "enee_code": s["id"],
                 "name": s["stazione"],
-                "stop_type": s["tipoFermata"],
+                "stop_type": map_stop_type(s["tipoFermata"]),
                 "actual_arrival_time": datetime_from_ms_timestamp(s["arrivoReale"]),
                 "actual_departure_time": datetime_from_ms_timestamp(s["partenzaReale"]),
                 "arrived": datetime_from_ms_timestamp(s["arrivoReale"]) is not None,
@@ -388,3 +394,11 @@ def date_from_ms_timestamp(timestamp_ms: int | None) -> date | None:
         return None
 
     return datetime.fromtimestamp(timestamp_ms / 1000).date()
+
+
+def map_stop_type(stop_type: str) -> str:
+    return {
+        "P": "departure",
+        "F": "intermediate",
+        "A": "arrival",
+    }.get(stop_type, stop_type)
