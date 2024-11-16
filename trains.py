@@ -319,15 +319,37 @@ def choose_station(station_prefix: str) -> Station | None:
     if len(stations) == 1:
         return Station(stations[0].enee_code, stations[0].name)
 
-    guesses: list[tuple[str, int]] = [(s.name, s.enee_code) for s in stations]
-    chosen_station_enee_code: int = inquirer.list_input(
+    chosen_station = inquirer.list_input(
         message="Seleziona la stazione",
-        choices=guesses,
+        choices=[(s.name, s) for s in stations],
     )
 
-    return Station(
-        chosen_station_enee_code,
-        next(s.name for s in stations if s.enee_code == chosen_station_enee_code),
+    return Station(chosen_station.enee_code, chosen_station.name)
+
+
+def choose_train(train_number: int) -> Train | None:
+    try:
+        train_info: list[TrainInfo] = vt.get_trains_with_number(train_number)
+    except vt.HTTPException as e:
+        print(e, file=sys.stderr)
+        return None
+
+    if len(train_info) == 1:
+        return Train(
+            train_info[0].number,
+            train_info[0].origin_enee_code,
+            train_info[0].departure_date,
+        )
+
+    chosen_train = inquirer.list_input(
+        message="Seleziona il treno",
+        choices=[(f"{t.origin_name} - {t.departure_date}", t) for t in train_info],
+    )
+
+    return Train(
+        chosen_train.number,
+        chosen_train.origin_enee_code,
+        chosen_train.departure_date,
     )
 
 
@@ -439,35 +461,9 @@ if __name__ == "__main__":
         queried_station.show_timetable(search_datetime, args.limit, is_departure=False)
 
     if args.train_number:
-        train_info: list[TrainInfo] = vt.get_trains_with_number(args.train_number)
-
-        if len(train_info) == 1:
-            train_to_monitor: Train = Train(
-                train_info[0].number,
-                train_info[0].origin_enee_code,
-                train_info[0].departure_date,
-            )
-        elif len(train_info) > 1:
-            print("Treni trovati con lo stesso numero:")
-            print(train_info)
-            for train in train_info:
-                print(f"{train.origin_name} - {train.departure_date}")
-            chosen_train = inquirer.list_input(
-                message="Seleziona il treno",
-                choices=[
-                    (f"{t.origin_name} - {t.departure_date}", t) for t in train_info
-                ],
-            )
-            train_to_monitor: Train = Train(
-                chosen_train.number,
-                chosen_train.origin_enee_code,
-                chosen_train.departure_date,
-            )
-        else:
-            print(f"Nessun treno trovato con il numero {args.train_number}.")
+        if (queried_train := choose_train(args.train_number)) is None:
             sys.exit(1)
-
-        train_to_monitor.show_progress()
+        queried_train.show_progress()
 
     if args.solutions:
         msg = "Journey solutions not implemented yet"

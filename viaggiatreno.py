@@ -230,6 +230,12 @@ def get_arrivals(
 def get_trains_with_number(train_number: int) -> list[TrainInfo]:
     r = get("cercaNumeroTrenoTrenoAutocomplete", train_number)
 
+    if not r:
+        raise HTTPException(
+            status_code=404,
+            detail="No trains with the given number could be found",
+        )
+
     return [
         TrainInfo(
             number=int(train_info.split()[0]),
