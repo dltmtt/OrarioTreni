@@ -2,6 +2,7 @@ from datetime import date, datetime, time
 
 import requests
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 description = """
@@ -32,6 +33,14 @@ app = FastAPI(
         "email": "deltonmatteo@gmail.com",
     },
     openapi_tags=tags_metadata,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 BASE_URI = "http://www.viaggiatreno.it/infomobilita/resteasy/viaggiatreno"
@@ -236,12 +245,15 @@ def get_trains_with_number(train_number: int) -> list[TrainInfo]:
             detail="No trains with the given number could be found",
         )
 
+    # Example responses (note the different formats, hence the complex parsing):
+    # 35299 - MILANO CENTRALE - 16/11/24|35299-S01700-1731711600000
+    # 2033 - TORINO PORTA NUOVA|2033-S00219-1731711600000
     return [
         TrainInfo(
             number=int(train_info.split()[0]),
-            departure_date=to_date(int(train_info.split("-")[3])),
-            origin_enee_code=to_enee_code(train_info.split("-")[2]),
-            origin=train_info.split("-")[1].split("|")[0].strip(),
+            departure_date=to_date(int(train_info.split("|")[1].split("-")[2])),
+            origin_enee_code=to_enee_code(train_info.split("|")[1].split("-")[1]),
+            origin=train_info.split("|")[0].split(" - ")[1],
         )
         for train_info in r.splitlines()
     ]
