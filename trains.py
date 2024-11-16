@@ -43,7 +43,7 @@ class Train:
         self.last_update_time: datetime | None = progress.last_update_time
 
         self.category: str = progress.category
-        self.number_changes: list[dict[str, str]] = progress.train_number_changes
+        self.number_changes: list[dict[str, int | str]] = progress.train_number_changes
 
         self.stops: list[Station] = [
             Station(
@@ -65,7 +65,7 @@ class Train:
         numbers = str(self.number)
         if self.number_changes:
             numbers += "/"
-            numbers += "/".join(c["new_train_number"] for c in self.number_changes)
+            numbers += "/".join(str(c["new_train_number"]) for c in self.number_changes)
 
         if self.category:
             return f"{self.category} {numbers}"

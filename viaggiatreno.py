@@ -4,22 +4,39 @@ import requests
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+description = """
+This API wrapper provides endpoints to retrieve information about trains, stations, and travel solutions from ViaggiaTreno, the official Trenitalia API.
+The ViaggiaTreno API is not officially documented, so the endpoints and their parameters are based on reverse-engineering the [ViaggiaTreno website](http://www.viaggiatreno.it/).
+"""
+tags_metadata = [
+    {
+        "name": "stations",
+        "description": "Get information about train stations, including departures and arrivals.",
+    },
+    {
+        "name": "trains",
+        "description": "Get information about trains, including their progress and stops.",
+    },
+    {
+        "name": "other",
+    },
+]
+
 app = FastAPI(
     title="ViaggiaTreno API Wrapper",
-    description="An API wrapper for ViaggiaTreno, the official Trenitalia API.",
+    description=description,
+    summary="An API wrapper for ViaggiaTreno, the official Trenitalia API.",
+    version="0.1.0",
+    contact={
+        "name": "Matteo Delton",
+        "email": "deltonmatteo@gmail.com",
+    },
+    openapi_tags=tags_metadata,
 )
 
 BASE_URI = "http://www.viaggiatreno.it/infomobilita/resteasy/viaggiatreno"
 MIN_ENEE_CODE = 0
 MAX_ENEE_CODE = 99999
-
-
-def _get(endpoint: str, *args: str) -> dict | str:
-    url = f'{BASE_URI}/{endpoint}/{"/".join(str(arg) for arg in args)}'
-    r = requests.get(url, timeout=30)
-    r.raise_for_status()
-
-    return r.json() if "json" in r.headers["Content-Type"] else r.text
 
 
 class Stats(BaseModel):
@@ -97,7 +114,7 @@ class TrainProgress(BaseModel):
     last_update_station: str | None
     train_type: str
     category: str
-    number: str
+    number: int
     departure_date: date
     origin_enee_code: int
     origin: str
@@ -114,23 +131,22 @@ class TrainProgress(BaseModel):
     stops: list[TrainStop]
 
 
-@app.get("/stats", response_model=Stats)
-def get_stats() -> Stats:
-    """Return statistics about trains for today."""
-    timestamp = int(datetime.now().timestamp() * 1000)
-    r = _get("statistiche", timestamp)
+def get(endpoint: str, *args: str) -> dict | str:
+    url = f'{BASE_URI}/{endpoint}/{"/".join(str(arg) for arg in args)}'
+    r = requests.get(url, timeout=30)
+    r.raise_for_status()
 
-    return Stats(
-        trains_since_midnight=r["treniGiorno"],
-        trains_running=r["treniCircolanti"],
-        last_update=to_datetime(r["ultimoAggiornamento"]),
-    )
+    return r.json() if "json" in r.headers["Content-Type"] else r.text
 
 
-@app.get("/stations/search/{prefix}", response_model=list[BaseStation])
+@app.get(
+    "/stations/search/{prefix}",
+    response_model=list[BaseStation],
+    tags=["stations"],
+)
 def get_stations_matching_prefix(prefix: str) -> list[BaseStation]:
-    """Return a list of stations starting with the given text."""
-    r = _get("cercaStazione", prefix)
+    """Get a list of stations starting with the given text."""
+    r = get("cercaStazione", prefix)
 
     if not r:
         raise HTTPException(
@@ -143,23 +159,27 @@ def get_stations_matching_prefix(prefix: str) -> list[BaseStation]:
     ]
 
 
-@app.get("/stations/{enee_code}/departures", response_model=list[Departure])
+@app.get(
+    "/stations/{enee_code}/departures",
+    response_model=list[Departure],
+    tags=["stations"],
+)
 def get_departures(
     enee_code: int,
     search_datetime: datetime | None = None,
     limit: int = 10,
 ) -> list[Departure]:
-    """Return the departures from a station at a certain time."""
+    """Get the departures from a station at a certain time."""
     if search_datetime is None:
         search_datetime = datetime.now()
 
     departure_datetime = to_string(search_datetime)
-    r = _get("partenze", to_station_id(enee_code), departure_datetime)
+    r = get("partenze", to_station_id(enee_code), departure_datetime)
 
     return [
         Departure(
             category=d["categoriaDescrizione"].strip(),
-            number=d["numeroTreno"],
+            number=int(d["numeroTreno"]),
             departure_date=to_date(d["dataPartenzaTreno"]),
             origin_enee_code=to_enee_code(d["codOrigine"]),
             destination=d["destinazione"],
@@ -175,23 +195,27 @@ def get_departures(
     ]
 
 
-@app.get("/stations/{enee_code}/arrivals", response_model=list[Arrival])
+@app.get(
+    "/stations/{enee_code}/arrivals",
+    response_model=list[Arrival],
+    tags=["stations"],
+)
 def get_arrivals(
     enee_code: int,
     search_datetime: datetime | None = None,
     limit: int = 10,
 ) -> list[Arrival]:
-    """Return the arrivals to a station at a certain time."""
+    """Get the arrivals to a station at a certain time."""
     if search_datetime is None:
         search_datetime = datetime.now()
 
     arrival_datetime = to_string(search_datetime)
-    r = _get("arrivi", to_station_id(enee_code), arrival_datetime)
+    r = get("arrivi", to_station_id(enee_code), arrival_datetime)
 
     return [
         Arrival(
             category=a["categoriaDescrizione"].strip(),
-            number=a["numeroTreno"],
+            number=int(a["numeroTreno"]),
             departure_date=to_date(a["dataPartenzaTreno"]),
             origin_enee_code=to_enee_code(a["codOrigine"]),
             origin=a["origine"],
@@ -207,16 +231,14 @@ def get_arrivals(
     ]
 
 
-@app.get("/trains/{train_number}", response_model=TrainInfo)
+@app.get("/trains/{train_number}", response_model=TrainInfo, tags=["trains"])
 def get_trains_with_number(train_number: int) -> list[TrainInfo]:
-    r = _get("cercaNumeroTrenoTrenoAutocomplete", train_number)
+    r = get("cercaNumeroTrenoTrenoAutocomplete", train_number)
 
     return [
         TrainInfo(
             number=int(train_info.split()[0]),
-            departure_date=to_date(
-                int(train_info.split("-")[3]),
-            ),
+            departure_date=to_date(int(train_info.split("-")[3])),
             origin_enee_code=to_enee_code(train_info.split("-")[2]),
             origin=train_info.split("-")[1].split("|")[0].strip(),
         )
@@ -224,55 +246,15 @@ def get_trains_with_number(train_number: int) -> list[TrainInfo]:
     ]
 
 
-@app.get("/search", response_model=TravelSolution)
-def get_travel_solutions(
-    origin_enee_code: int,
-    destination_enee_code: int,
-    search_datetime: datetime | None = None,
-    limit: int = 10,
-) -> TravelSolution:
-    """Return travel solutions between two stations."""
-    if search_datetime is None:
-        search_datetime = datetime.now()
-
-    r = _get(
-        "soluzioniViaggioNew",
-        origin_enee_code,
-        destination_enee_code,
-        search_datetime.isoformat(),
-    )
-
-    return TravelSolution(
-        origin=r["origine"],
-        destination=r["destinazione"],
-        solutions=[
-            {
-                "vehicles": [
-                    {
-                        "origin": v["origine"],
-                        "destination": v["destinazione"],
-                        "departure_time": datetime.fromisoformat(v["orarioPartenza"]),
-                        "arrival_time": datetime.fromisoformat(v["orarioArrivo"]),
-                        "category": v["categoriaDescrizione"],
-                        "number": v["numeroTreno"],
-                    }
-                    for v in s["vehicles"]
-                ],
-            }
-            for s in r["soluzioni"][:limit]
-        ],
-    )
-
-
-@app.get("/trains", response_model=TrainProgress | None)
+@app.get("/trains", response_model=TrainProgress | None, tags=["trains"])
 def get_train_progress(
     origin_enee_code: int,
     train_number: int,
     departure_date: date,
 ) -> TrainProgress | None:
-    """Return the progress of a train."""
+    """Get the progress of a train, including its stops and delays."""
     dep_date_ts: int = to_ms_date_timestamp(departure_date)
-    r = _get(
+    r = get(
         "andamentoTreno",
         to_station_id(origin_enee_code),
         train_number,
@@ -289,14 +271,14 @@ def get_train_progress(
         else None,
         train_type=r["tipoTreno"],
         category=r["categoria"],
-        number=str(r["numeroTreno"]),
+        number=int(r["numeroTreno"]),
         departure_date=to_date(r["dataPartenzaTreno"]),
         origin_enee_code=to_enee_code(r["idOrigine"]),
         origin=r["origine"],
         destination=r["destinazione"],
         destination_enee_code=to_enee_code(r["idDestinazione"]),
         train_number_changes=[
-            {"new_train_number": c["nuovoNumeroTreno"], "station": c["stazione"]}
+            {"new_train_number": int(c["nuovoNumeroTreno"]), "station": c["stazione"]}
             for c in r["cambiNumero"]
         ],
         departure_time=to_datetime(r["orarioPartenza"]),
@@ -323,6 +305,59 @@ def get_train_progress(
                 "actual_departure_track": s["binarioEffettivoPartenzaDescrizione"],
             }
             for s in r["fermate"]
+        ],
+    )
+
+
+@app.get("/stats", response_model=Stats, tags=["other"])
+def get_stats() -> Stats:
+    """Get statistics about today's circulating trains."""
+    timestamp = int(datetime.now().timestamp() * 1000)
+    r = get("statistiche", timestamp)
+
+    return Stats(
+        trains_since_midnight=r["treniGiorno"],
+        trains_running=r["treniCircolanti"],
+        last_update=to_datetime(r["ultimoAggiornamento"]),
+    )
+
+
+@app.get("/search", response_model=TravelSolution, tags=["other"])
+def get_travel_solutions(
+    origin_enee_code: int,
+    destination_enee_code: int,
+    search_datetime: datetime | None = None,
+    limit: int = 10,
+) -> TravelSolution:
+    """Get travel solutions between two stations."""
+    if search_datetime is None:
+        search_datetime = datetime.now()
+
+    r = get(
+        "soluzioniViaggioNew",
+        origin_enee_code,
+        destination_enee_code,
+        search_datetime.isoformat(),
+    )
+
+    return TravelSolution(
+        origin=r["origine"],
+        destination=r["destinazione"],
+        solutions=[
+            {
+                "vehicles": [
+                    {
+                        "origin": v["origine"],
+                        "destination": v["destinazione"],
+                        "departure_time": datetime.fromisoformat(v["orarioPartenza"]),
+                        "arrival_time": datetime.fromisoformat(v["orarioArrivo"]),
+                        "category": v["categoriaDescrizione"],
+                        "number": int(v["numeroTreno"]),
+                    }
+                    for v in s["vehicles"]
+                ],
+            }
+            for s in r["soluzioni"][:limit]
         ],
     )
 
