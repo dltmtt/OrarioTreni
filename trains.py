@@ -343,7 +343,7 @@ def choose_train(train_number: int) -> Train | None:
 
     chosen_train = inquirer.list_input(
         message="Seleziona il treno",
-        choices=[(f"{t.origin_name} - {t.departure_date}", t) for t in train_info],
+        choices=[(f"{t.origin} - {t.departure_date}", t) for t in train_info],
     )
 
     return Train(
