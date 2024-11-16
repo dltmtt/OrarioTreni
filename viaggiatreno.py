@@ -231,7 +231,7 @@ def get_arrivals(
     ]
 
 
-@app.get("/trains/{train_number}", response_model=TrainInfo, tags=["trains"])
+@app.get("/trains/{train_number}", response_model=list[TrainInfo], tags=["trains"])
 def get_trains_with_number(train_number: int) -> list[TrainInfo]:
     r = get("cercaNumeroTrenoTrenoAutocomplete", train_number)
 
