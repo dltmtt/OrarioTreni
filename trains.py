@@ -13,41 +13,53 @@ from prettytable import PrettyTable
 
 import viaggiatreno as vt
 from ansicolors import Foreground, Style
+from viaggiatreno import (
+    Arrival,
+    BaseStation,
+    Departure,
+    TrainInfo,
+    TrainStop,
+)
 
 
 class Train:
-    """A train is identified by the triple (number, origin_id, departure_date)."""
+    """A train is identified by the triple (number, origin_enee_code, departure_date)."""
 
-    def __init__(self, number: int, origin_id: str, departure_date: date) -> None:
+    def __init__(
+        self,
+        number: int,
+        origin_enee_code: int,
+        departure_date: date,
+    ) -> None:
         self.number: int = number
-        self.departure_station: str = origin_id
+        self.origin_enee_code: int = origin_enee_code
         self.departure_date: date = departure_date
 
-        progress = vt.get_train_progress(
-            origin_id,
-            number,
-            departure_date,
-        )
+        progress = vt.get_train_progress(origin_enee_code, number, departure_date)
         if not progress:
             return
 
-        self.last_update_station: str | None = progress.get("last_update_station")
-        self.last_update_time: datetime | None = progress.get("last_update_time")
+        self.last_update_station: str | None = progress.last_update_station
+        self.last_update_time: datetime | None = progress.last_update_time
 
-        self.category: str = progress["category"]
-        self.number_changes: list[dict[str, str]] = progress["train_number_changes"]
+        self.category: str = progress.category
+        self.number_changes: list[dict[str, str]] = progress.train_number_changes
 
         self.stops: list[Station] = [
-            Station(s["id"], s["name"], self, progress["stops"])
-            for s in progress["stops"]
+            Station(
+                vt.get_unprefixed_enee_code(s.enee_code),
+                s.name,
+                self,
+                progress.stops,
+            )
+            for s in progress.stops
         ]
-        self.origin = self.stops[0]
-        self.destination = self.stops[-1]
-
-        self.departure_time: datetime = progress["departure_time"]  # w.r.t. the origin
-        self.arrival_time: datetime = progress["arrival_time"]  # w.r.t. the destination
-        self.departed_from_origin: bool = progress["departed_from_origin"]
-        self.delay: int = progress["delay"]
+        self.origin: Station = self.stops[0]
+        self.destination: Station = self.stops[-1]
+        self.departure_time: datetime = progress.departure_time
+        self.arrival_time: datetime = progress.arrival_time
+        self.departed_from_origin: bool = progress.departed_from_origin
+        self.delay: int = progress.delay
 
     def __str__(self) -> str:
         numbers = str(self.number)
@@ -60,10 +72,9 @@ class Train:
         return f"{numbers}"
 
     def __repr__(self) -> str:
-        return f"Train({self.number}, {self.departure_station}, {self.departure_date})"
+        return f"Train({self.number}, {self.origin_enee_code}, {self.departure_date})"
 
     def get_formatted_delay(self) -> str:
-        # TODO: decide whether to use self.departed_from_origin or self.origin.departed
         if self.origin.departed:
             if self.delay > 0:
                 return Foreground.red(f"{self.delay:+}")
@@ -72,7 +83,7 @@ class Train:
             return "In orario"
 
         if self.origin.actual_departure_track is not None:
-            return "Pronto a partire"  # In origin station, not departed yet
+            return "Pronto"
 
         return "Non partito"
 
@@ -99,10 +110,9 @@ class Train:
                 print(f"\n{stop.name} · {track}")
             else:
                 print(f"\n{stop.name}")
-
             if stop.type in ("P", "F"):
                 print(
-                    f"Dep.:\t{stop.scheduled_departure_time.strftime("%H:%M")}"
+                    f"Dep.:\t{stop.scheduled_departure_time.strftime('%H:%M')}"
                     f"\t{stop.get_formatted_time(self.delay, check_departures=True)}",
                 )
 
@@ -116,15 +126,14 @@ class Train:
 class Station:
     """Represents a station, possibly intended as a stop for a specific train."""
 
-    # TODO: remove stops dict
     def __init__(
         self,
-        prefixed_enee_code: str,
+        enee_code: int,
         name: str,
         train: Train | None = None,
-        stops: dict | None = None,
+        stops: list[TrainStop] | None = None,
     ) -> None:
-        self.prefixed_enee_code: str = prefixed_enee_code
+        self.enee_code: int = enee_code
         self.name: str = name
 
         if train is None or stops is None:
@@ -132,29 +141,34 @@ class Station:
 
         self.train = train
 
-        stop = next((s for s in stops if s["id"] == self.prefixed_enee_code), None)
+        stop = next(
+            (
+                s
+                for s in stops
+                if vt.get_unprefixed_enee_code(s.enee_code) == self.enee_code
+            ),
+            None,
+        )
         if stop is None:
             return
 
-        self.actual_departure_track: str = stop.get("actual_departure_track")
-        self.scheduled_departure_track: str = stop.get("scheduled_departure_track")
-        self.actual_arrival_track: str = stop.get("actual_arrival_track")
-        self.scheduled_arrival_track: str = stop.get("scheduled_arrival_track")
-        self.arrived: bool = stop.get("arrived")
-        self.departed: bool = stop.get("departed")
-
-        self.type: str = stop.get("stop_type")
-
-        self.actual_departure_time: datetime = stop.get("actual_departure_time")
-        self.scheduled_departure_time: datetime = stop.get("scheduled_departure_time")
-        self.actual_arrival_time: datetime = stop.get("actual_arrival_time")
-        self.scheduled_arrival_time: datetime = stop.get("scheduled_arrival_time")
+        self.actual_departure_track: str | None = stop.actual_departure_track
+        self.scheduled_departure_track: str | None = stop.scheduled_departure_track
+        self.actual_arrival_track: str | None = stop.actual_arrival_track
+        self.scheduled_arrival_track: str | None = stop.scheduled_arrival_track
+        self.arrived: bool = stop.arrived
+        self.departed: bool = stop.departed
+        self.type: str = stop.stop_type
+        self.actual_departure_time: datetime | None = stop.actual_departure_time
+        self.scheduled_departure_time: datetime | None = stop.scheduled_departure_time
+        self.actual_arrival_time: datetime | None = stop.actual_arrival_time
+        self.scheduled_arrival_time: datetime | None = stop.scheduled_arrival_time
 
     def __str__(self) -> str:
         return self.name
 
     def __repr__(self) -> str:
-        return f"Station({self.prefixed_enee_code}, {self.name})"
+        return f"Station({self.enee_code}, {self.name})"
 
     def show_timetable(
         self,
@@ -166,14 +180,14 @@ class Station:
         if timetable_datetime is None:
             timetable_datetime = datetime.now()
         print(
-            Style.bold(f"{"Partenze da" if is_departure else "Arrivi a"} {self.name}"),
+            Style.bold(f"{'Partenze da' if is_departure else 'Arrivi a'} {self.name}"),
         )
 
         table = PrettyTable()
 
         if is_departure:
-            trains: list[dict] = vt.get_departures(
-                self.prefixed_enee_code,
+            trains: list[Departure] = vt.get_departures(
+                self.enee_code,
                 timetable_datetime,
                 limit,
             )
@@ -188,8 +202,8 @@ class Station:
                 "Binario",
             ]
         else:
-            trains: list[dict] = vt.get_arrivals(
-                self.prefixed_enee_code,
+            trains: list[Arrival] = vt.get_arrivals(
+                self.enee_code,
                 timetable_datetime,
                 limit,
             )
@@ -202,7 +216,7 @@ class Station:
             futures = [
                 executor.submit(
                     self.process_train,
-                    Train(train["number"], train["origin_id"], train["departure_date"]),
+                    Train(train.number, train.origin_enee_code, train.departure_date),
                     check_departures=is_departure,
                 )
                 for train in trains
@@ -216,7 +230,7 @@ class Station:
 
     def process_train(self, train: Train, *, check_departures: bool) -> list:
         station = next(
-            (s for s in train.stops if s.prefixed_enee_code == self.prefixed_enee_code),
+            (s for s in train.stops if s.enee_code == self.enee_code),
             None,
         )
 
@@ -231,7 +245,6 @@ class Station:
             station_name = train.origin.name
             scheduled_time = station.scheduled_arrival_time.strftime("%H:%M")
 
-        # TODO: Should I get the delay for this specific station?
         return [
             train,
             station_name,
@@ -297,34 +310,33 @@ class Station:
 
 
 def show_statistics() -> None:
-    s = vt.get_statistics()
+    s = vt.get_stats()
 
-    last_update = s["last_update"].strftime("%T")
     print(
-        f"Treni in circolazione da mezzanotte: {s['trains_since_midnight']}\n"
-        f"Treni in circolazione ora: {s['trains_running']}\n"
-        f"{Style.DIM}Ultimo aggiornamento: {last_update}{Style.NORMAL}",
+        f"Treni in circolazione da mezzanotte: {s.trains_since_midnight}\n"
+        f"Treni in circolazione ora: {s.trains_running}\n"
+        f"{Style.DIM}Ultimo aggiornamento: {s.last_update.strftime('%T')}{Style.NORMAL}",
     )
 
 
 def choose_station(station_prefix: str) -> Station | None:
-    stations: list[dict[str, str]] = vt.get_stations_matching_prefix(station_prefix)
+    stations: list[BaseStation] = vt.get_stations_matching_prefix(station_prefix)
 
     if not stations:
         return None
 
     if len(stations) == 1:
-        return Station(stations[0]["id"], stations[0]["name"])
+        return Station(stations[0].enee_code, stations[0].name)
 
-    guesses = [(s["name"], s["id"]) for s in stations]
-    chosen_station_id = inquirer.list_input(
+    guesses: list[tuple[str, int]] = [(s.name, s.enee_code) for s in stations]
+    chosen_station_enee_code: int = inquirer.list_input(
         message="Seleziona la stazione",
         choices=guesses,
     )
 
     return Station(
-        chosen_station_id,
-        next(s["name"] for s in stations if s["id"] == chosen_station_id),
+        chosen_station_enee_code,
+        next(s.name for s in stations if s.enee_code == chosen_station_enee_code),
     )
 
 
@@ -414,7 +426,6 @@ if __name__ == "__main__":
             f"Invalid log level: {Foreground.red(args.log_level)} "
             "(valid values are: DEBUG, INFO, WARNING, ERROR, CRITICAL).",
         )
-
         sys.exit(1)
 
     logging.basicConfig(level=args.log_level)
@@ -423,7 +434,7 @@ if __name__ == "__main__":
         show_statistics()
 
     search_date: date = datetime.strptime(args.date, "%Y-%m-%d").date()
-    search_time: time = datetime.strptime(args.time, "%H:%").time()
+    search_time: time = datetime.strptime(args.time, "%H:%M").time()
     search_datetime: datetime = datetime.combine(search_date, search_time)
 
     if args.departures:
@@ -439,12 +450,11 @@ if __name__ == "__main__":
         queried_station.show_timetable(search_datetime, args.limit, is_departure=False)
 
     if args.train_number:
-        # TODO: handle multiple trains with the same number
-        train_info: dict = vt.get_train_info(args.train_number)
+        train_info: TrainInfo = vt.get_train_info(args.train_number)
         train_to_monitor: Train = Train(
-            train_info["number"],
-            train_info["departure_station_id"],
-            train_info["departure_date"],
+            train_info.number,
+            train_info.origin_enee_code,
+            train_info.departure_date,
         )
         train_to_monitor.show_progress()
 
