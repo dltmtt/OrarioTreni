@@ -449,12 +449,34 @@ if __name__ == "__main__":
         queried_station.show_timetable(search_datetime, args.limit, is_departure=False)
 
     if args.train_number:
-        train_info: TrainInfo = vt.get_train_info(args.train_number)
-        train_to_monitor: Train = Train(
-            train_info.number,
-            train_info.origin_enee_code,
-            train_info.departure_date,
-        )
+        train_info: list[TrainInfo] = vt.get_trains_with_number(args.train_number)
+
+        if len(train_info) == 1:
+            train_to_monitor: Train = Train(
+                train_info[0].number,
+                train_info[0].origin_enee_code,
+                train_info[0].departure_date,
+            )
+        elif len(train_info) > 1:
+            print("Treni trovati con lo stesso numero:")
+            print(train_info)
+            for train in train_info:
+                print(f"{train.origin_name} - {train.departure_date}")
+            chosen_train = inquirer.list_input(
+                message="Seleziona il treno",
+                choices=[
+                    (f"{t.origin_name} - {t.departure_date}", t) for t in train_info
+                ],
+            )
+            train_to_monitor: Train = Train(
+                chosen_train.number,
+                chosen_train.origin_enee_code,
+                chosen_train.departure_date,
+            )
+        else:
+            print(f"Nessun treno trovato con il numero {args.train_number}.")
+            sys.exit(1)
+
         train_to_monitor.show_progress()
 
     if args.solutions:

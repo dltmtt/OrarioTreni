@@ -63,8 +63,8 @@ class Arrival(BaseModel):
 
 class TrainInfo(BaseModel):
     number: int
-    departure_date: date
     origin_enee_code: int
+    departure_date: date
     origin: str
 
 
@@ -207,18 +207,20 @@ def get_arrivals(
 
 
 @app.get("/trains/{train_number}", response_model=TrainInfo)
-def get_train_info(train_number: int) -> TrainInfo:
-    # TODO: I should use the endpoint "cercaNumeroTrenoTrenoAutocomplete" (no typo)
-    # in case there are multiple trains with the same number (e.g., REG 2347
-    # from Milano Centrale)
-    r = _get("cercaNumeroTreno", train_number)
+def get_trains_with_number(train_number: int) -> list[TrainInfo]:
+    r = _get("cercaNumeroTrenoTrenoAutocomplete", train_number)
 
-    return TrainInfo(
-        number=r["numeroTreno"],
-        departure_date=date_from_ms_timestamp(r["dataPartenza"]),
-        origin_enee_code=get_unprefixed_enee_code(r["codLocOrig"]),
-        origin=r["descLocOrig"],
-    )
+    return [
+        TrainInfo(
+            number=int(train_info.split()[0]),
+            departure_date=date_from_ms_timestamp(
+                int(train_info.split("-")[3]),
+            ),
+            origin_enee_code=get_unprefixed_enee_code(train_info.split("-")[2]),
+            origin=train_info.split("-")[1].split("|")[0].strip(),
+        )
+        for train_info in r.splitlines()
+    ]
 
 
 @app.get("/search", response_model=TravelSolution)
