@@ -11,8 +11,8 @@ from datetime import date, datetime, time, timedelta
 import inquirer
 from prettytable import PrettyTable
 
+import viaggiatreno as vt
 from ansicolors import Foreground, Style
-from viaggiatreno import ViaggiaTrenoAPIWrapper
 
 
 class Train:
@@ -23,7 +23,7 @@ class Train:
         self.departure_station: str = origin_id
         self.departure_date: date = departure_date
 
-        progress = ViaggiaTrenoAPIWrapper.get_train_progress(
+        progress = vt.get_train_progress(
             origin_id,
             number,
             departure_date,
@@ -172,7 +172,7 @@ class Station:
         table = PrettyTable()
 
         if is_departure:
-            trains: list[dict] = ViaggiaTrenoAPIWrapper.get_departures(
+            trains: list[dict] = vt.get_departures(
                 self.prefixed_enee_code,
                 timetable_datetime,
                 limit,
@@ -188,7 +188,7 @@ class Station:
                 "Binario",
             ]
         else:
-            trains: list[dict] = ViaggiaTrenoAPIWrapper.get_arrivals(
+            trains: list[dict] = vt.get_arrivals(
                 self.prefixed_enee_code,
                 timetable_datetime,
                 limit,
@@ -297,7 +297,7 @@ class Station:
 
 
 def show_statistics() -> None:
-    s = ViaggiaTrenoAPIWrapper.get_statistics()
+    s = vt.get_statistics()
 
     last_update = s["last_update"].strftime("%T")
     print(
@@ -308,9 +308,7 @@ def show_statistics() -> None:
 
 
 def choose_station(station_prefix: str) -> Station | None:
-    stations: list[dict[str, str]] = (
-        ViaggiaTrenoAPIWrapper.get_stations_matching_prefix(station_prefix)
-    )
+    stations: list[dict[str, str]] = vt.get_stations_matching_prefix(station_prefix)
 
     if not stations:
         return None
@@ -424,8 +422,8 @@ if __name__ == "__main__":
     if args.stats:
         show_statistics()
 
-    search_date: date = datetime.strptime(args.date + " +0000", "%Y-%m-%d %z").date()
-    search_time: time = datetime.strptime(args.time + " +0000", "%H:%M %z").timetz()
+    search_date: date = datetime.strptime(args.date, "%Y-%m-%d").date()
+    search_time: time = datetime.strptime(args.time, "%H:%").time()
     search_datetime: datetime = datetime.combine(search_date, search_time)
 
     if args.departures:
@@ -442,7 +440,7 @@ if __name__ == "__main__":
 
     if args.train_number:
         # TODO: handle multiple trains with the same number
-        train_info: dict = ViaggiaTrenoAPIWrapper.get_train_info(args.train_number)
+        train_info: dict = vt.get_train_info(args.train_number)
         train_to_monitor: Train = Train(
             train_info["number"],
             train_info["departure_station_id"],
@@ -451,4 +449,5 @@ if __name__ == "__main__":
         train_to_monitor.show_progress()
 
     if args.solutions:
-        print("Not implemented yet")
+        msg = "Journey solutions not implemented yet"
+        raise NotImplementedError(msg)
