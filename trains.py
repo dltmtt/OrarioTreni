@@ -47,7 +47,7 @@ class Train:
 
         self.stops: list[Station] = [
             Station(
-                vt.get_unprefixed_enee_code(s.enee_code),
+                s.enee_code,
                 s.name,
                 self,
                 progress.stops,
@@ -141,14 +141,7 @@ class Station:
 
         self.train = train
 
-        stop = next(
-            (
-                s
-                for s in stops
-                if vt.get_unprefixed_enee_code(s.enee_code) == self.enee_code
-            ),
-            None,
-        )
+        stop = next((s for s in stops if s.enee_code == self.enee_code), None)
         if stop is None:
             return
 
@@ -229,10 +222,7 @@ class Station:
         print(table)
 
     def process_train(self, train: Train, *, check_departures: bool) -> list:
-        station = next(
-            (s for s in train.stops if s.enee_code == self.enee_code),
-            None,
-        )
+        station = next((s for s in train.stops if s.enee_code == self.enee_code), None)
 
         if station is None:
             msg = "Non-real-time updates not implemented yet"

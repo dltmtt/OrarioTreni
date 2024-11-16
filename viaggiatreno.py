@@ -10,6 +10,8 @@ app = FastAPI(
 )
 
 BASE_URI = "http://www.viaggiatreno.it/infomobilita/resteasy/viaggiatreno"
+MIN_ENEE_CODE = 0
+MAX_ENEE_CODE = 99999
 
 
 def _get(endpoint: str, *args: str) -> dict | str:
@@ -75,7 +77,7 @@ class TravelSolution(BaseModel):
 
 
 class TrainStop(BaseModel):
-    enee_code: str
+    enee_code: int
     name: str
     stop_type: str
     actual_arrival_time: datetime | None
@@ -121,7 +123,7 @@ def get_stats() -> Stats:
     return Stats(
         trains_since_midnight=r["treniGiorno"],
         trains_running=r["treniCircolanti"],
-        last_update=datetime_from_ms_timestamp(r["ultimoAggiornamento"]),
+        last_update=to_datetime(r["ultimoAggiornamento"]),
     )
 
 
@@ -137,8 +139,7 @@ def get_stations_matching_prefix(prefix: str) -> list[BaseStation]:
         )
 
     return [
-        BaseStation(name=s["nomeLungo"], enee_code=get_unprefixed_enee_code(s["id"]))
-        for s in r
+        BaseStation(name=s["nomeLungo"], enee_code=to_enee_code(s["id"])) for s in r
     ]
 
 
@@ -153,18 +154,18 @@ def get_departures(
         search_datetime = datetime.now()
 
     departure_datetime = to_string(search_datetime)
-    r = _get("partenze", get_prefixed_enee_code(enee_code), departure_datetime)
+    r = _get("partenze", to_station_id(enee_code), departure_datetime)
 
     return [
         Departure(
             category=d["categoriaDescrizione"].strip(),
             number=d["numeroTreno"],
-            departure_date=date_from_ms_timestamp(d["dataPartenzaTreno"]),
-            origin_enee_code=get_unprefixed_enee_code(d["codOrigine"]),
+            departure_date=to_date(d["dataPartenzaTreno"]),
+            origin_enee_code=to_enee_code(d["codOrigine"]),
             destination=d["destinazione"],
             scheduled_track=d.get("binarioProgrammatoPartenzaDescrizione"),
             actual_track=d.get("binarioEffettivoPartenzaDescrizione"),
-            departure_time=datetime_from_ms_timestamp(d["orarioPartenza"]),
+            departure_time=to_datetime(d["orarioPartenza"]),
             departed_from_origin=not d["nonPartito"],
             in_station=d["inStazione"],
             delay=int(d["ritardo"]),
@@ -185,18 +186,18 @@ def get_arrivals(
         search_datetime = datetime.now()
 
     arrival_datetime = to_string(search_datetime)
-    r = _get("arrivi", get_prefixed_enee_code(enee_code), arrival_datetime)
+    r = _get("arrivi", to_station_id(enee_code), arrival_datetime)
 
     return [
         Arrival(
             category=a["categoriaDescrizione"].strip(),
             number=a["numeroTreno"],
-            departure_date=date_from_ms_timestamp(a["dataPartenzaTreno"]),
-            origin_enee_code=get_unprefixed_enee_code(a["codOrigine"]),
+            departure_date=to_date(a["dataPartenzaTreno"]),
+            origin_enee_code=to_enee_code(a["codOrigine"]),
             origin=a["origine"],
             scheduled_track=a["binarioProgrammatoArrivoDescrizione"],
             actual_track=a["binarioEffettivoArrivoDescrizione"],
-            arrival_time=datetime_from_ms_timestamp(a["orarioArrivo"]),
+            arrival_time=to_datetime(a["orarioArrivo"]),
             departed_from_origin=not a["nonPartito"],
             in_station=a["inStazione"],
             delay=int(a["ritardo"]),
@@ -213,10 +214,10 @@ def get_trains_with_number(train_number: int) -> list[TrainInfo]:
     return [
         TrainInfo(
             number=int(train_info.split()[0]),
-            departure_date=date_from_ms_timestamp(
+            departure_date=to_date(
                 int(train_info.split("-")[3]),
             ),
-            origin_enee_code=get_unprefixed_enee_code(train_info.split("-")[2]),
+            origin_enee_code=to_enee_code(train_info.split("-")[2]),
             origin=train_info.split("-")[1].split("|")[0].strip(),
         )
         for train_info in r.splitlines()
@@ -273,7 +274,7 @@ def get_train_progress(
     dep_date_ts: int = to_ms_date_timestamp(departure_date)
     r = _get(
         "andamentoTreno",
-        get_prefixed_enee_code(origin_enee_code),
+        to_station_id(origin_enee_code),
         train_number,
         dep_date_ts,
     )
@@ -282,24 +283,24 @@ def get_train_progress(
         return None
 
     return TrainProgress(
-        last_update_time=datetime_from_ms_timestamp(r["oraUltimoRilevamento"]),
+        last_update_time=to_datetime(r["oraUltimoRilevamento"]),
         last_update_station=r["stazioneUltimoRilevamento"]
         if r["stazioneUltimoRilevamento"] != "--"
         else None,
         train_type=r["tipoTreno"],
         category=r["categoria"],
         number=str(r["numeroTreno"]),
-        departure_date=date_from_ms_timestamp(r["dataPartenzaTreno"]),
-        origin_enee_code=get_unprefixed_enee_code(r["idOrigine"]),
+        departure_date=to_date(r["dataPartenzaTreno"]),
+        origin_enee_code=to_enee_code(r["idOrigine"]),
         origin=r["origine"],
         destination=r["destinazione"],
-        destination_enee_code=get_unprefixed_enee_code(r["idDestinazione"]),
+        destination_enee_code=to_enee_code(r["idDestinazione"]),
         train_number_changes=[
             {"new_train_number": c["nuovoNumeroTreno"], "station": c["stazione"]}
             for c in r["cambiNumero"]
         ],
-        departure_time=datetime_from_ms_timestamp(r["orarioPartenza"]),
-        arrival_time=datetime_from_ms_timestamp(r["orarioArrivo"]),
+        departure_time=to_datetime(r["orarioPartenza"]),
+        arrival_time=to_datetime(r["orarioArrivo"]),
         departed_from_origin=not r["nonPartito"],
         in_station=r["inStazione"],
         delay=int(r["ritardo"] or 0),
@@ -307,19 +308,15 @@ def get_train_progress(
         delay_reason=r["motivoRitardoPrevalente"],
         stops=[
             {
-                "enee_code": s["id"],
+                "enee_code": to_enee_code(s["id"]),
                 "name": s["stazione"],
                 "stop_type": map_stop_type(s["tipoFermata"]),
-                "actual_arrival_time": datetime_from_ms_timestamp(s["arrivoReale"]),
-                "actual_departure_time": datetime_from_ms_timestamp(s["partenzaReale"]),
-                "arrived": datetime_from_ms_timestamp(s["arrivoReale"]) is not None,
-                "departed": datetime_from_ms_timestamp(s["partenzaReale"]) is not None,
-                "scheduled_arrival_time": datetime_from_ms_timestamp(
-                    s["arrivo_teorico"],
-                ),
-                "scheduled_departure_time": datetime_from_ms_timestamp(
-                    s["partenza_teorica"],
-                ),
+                "actual_arrival_time": to_datetime(s["arrivoReale"]),
+                "actual_departure_time": to_datetime(s["partenzaReale"]),
+                "arrived": to_datetime(s["arrivoReale"]) is not None,
+                "departed": to_datetime(s["partenzaReale"]) is not None,
+                "scheduled_arrival_time": to_datetime(s["arrivo_teorico"]),
+                "scheduled_departure_time": to_datetime(s["partenza_teorica"]),
                 "scheduled_arrival_track": s["binarioProgrammatoArrivoDescrizione"],
                 "actual_arrival_track": s["binarioEffettivoArrivoDescrizione"],
                 "scheduled_departure_track": s["binarioProgrammatoPartenzaDescrizione"],
@@ -337,15 +334,15 @@ def to_ms_date_timestamp(date_to_convert: date | datetime | int | str) -> int:
     or a string in ISO 8601 format.
     """
     if isinstance(date_to_convert, date):
-        dt = datetime.combine(date_to_convert, time.min)
+        converted_datetime = datetime.combine(date_to_convert, time.min)
     elif isinstance(date_to_convert, datetime):
-        dt = datetime.combine(date_to_convert.date(), time.min)
+        converted_datetime = datetime.combine(date_to_convert.date(), time.min)
     elif isinstance(date_to_convert, int):
-        dt = datetime.fromtimestamp(date_to_convert / 1000)
-        dt = datetime.combine(dt.date(), time.min)
+        converted_datetime = datetime.fromtimestamp(date_to_convert / 1000)
+        converted_datetime = datetime.combine(converted_datetime.date(), time.min)
     elif isinstance(date_to_convert, str):
         try:
-            dt = datetime.fromisoformat(date_to_convert)
+            converted_datetime = datetime.fromisoformat(date_to_convert)
         except ValueError:
             msg = f"Invalid date format: {date_to_convert}"
             raise ValueError(msg) from None
@@ -353,49 +350,54 @@ def to_ms_date_timestamp(date_to_convert: date | datetime | int | str) -> int:
         msg = f"Unsupported date type: {type(date_to_convert)}"
         raise TypeError(msg)
 
-    return int(dt.timestamp() * 1000)
+    return int(converted_datetime.timestamp() * 1000)
 
 
-def to_string(dt: datetime | int | str) -> str:
-    if isinstance(dt, int):
-        dt = datetime.fromtimestamp(dt / 1000)
-    elif isinstance(dt, str):
-        dt = datetime.fromisoformat(dt)
+def to_string(datetime_to_convert: datetime | int | str) -> str:
+    """Convert a datetime, timestamp, or ISO 8601 string to a string in the format used by ViaggiaTreno."""
+    if isinstance(datetime_to_convert, int):
+        datetime_to_convert = datetime.fromtimestamp(datetime_to_convert / 1000)
+    elif isinstance(datetime_to_convert, str):
+        datetime_to_convert = datetime.fromisoformat(datetime_to_convert)
 
-    return dt.strftime("%a %b %d %Y %H:%M:%S")
+    return datetime_to_convert.strftime("%a %b %d %Y %H:%M:%S")
 
 
-def get_unprefixed_enee_code(prefixed_enee_code: str) -> int:
-    if len(prefixed_enee_code) == 6:  # noqa: PLR2004
-        enee_code = int(prefixed_enee_code.lstrip("S"))
-    elif len(prefixed_enee_code) == 8:  # noqa: PLR2004
-        enee_code = int(prefixed_enee_code.lstrip("830"))
+def to_enee_code(station_id: str) -> int:
+    """Strip the prefix from an ENEE code and return it as an integer.
+
+    Most station IDs returned by ViaggiaTreno are ENEE codes prefixed with "S".
+    For consistency, we strip the prefix and return only the code as an integer.
+    """
+    if station_id.startswith("S"):
+        enee_code = int(station_id[1:])
+    elif station_id.startswith("830"):
+        enee_code = int(station_id[3:])
     else:
-        enee_code = int(prefixed_enee_code)
+        enee_code = int(station_id)
 
-    if not (0 <= enee_code <= 99999):  # noqa: PLR2004
-        msg = "enee_code must be a 5-digit number"
+    if enee_code < MIN_ENEE_CODE or enee_code > MAX_ENEE_CODE:
+        msg = f"ENEE code must be a number of up to 5 digits, got {enee_code}"
         raise ValueError(msg)
 
     return enee_code
 
 
-def get_prefixed_enee_code(unprefixed_enee_code: int) -> str:
-    return f"S{unprefixed_enee_code:05d}"
+def to_station_id(enee_code: int) -> str:
+    """Return a 6-digit station ID in the format used by ViaggiaTreno.
+
+    ViaggiaTreno uses 6-digit station IDs, where the first digit is always "S".
+    If the given ENEE code is less than 5 digits, it is zero-padded.
+    """
+    return f"S{enee_code:05d}"
 
 
-def datetime_from_ms_timestamp(timestamp_ms: int | None) -> datetime | None:
-    if timestamp_ms is None:
-        return None
-
-    return datetime.fromtimestamp(timestamp_ms / 1000)
+def to_datetime(timestamp_ms: int | None) -> datetime | None:
+    return datetime.fromtimestamp(timestamp_ms / 1000) if timestamp_ms else None
 
 
-def date_from_ms_timestamp(timestamp_ms: int | None) -> date | None:
-    if timestamp_ms is None:
-        return None
-
-    return datetime.fromtimestamp(timestamp_ms / 1000).date()
+def to_date(timestamp_ms: int | None) -> date | None:
+    return datetime.fromtimestamp(timestamp_ms / 1000).date() if timestamp_ms else None
 
 
 def map_stop_type(stop_type: str) -> str:
