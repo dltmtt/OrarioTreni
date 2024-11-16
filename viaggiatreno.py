@@ -60,7 +60,6 @@ class Departure(BaseModel):
     actual_track: str | None
     departure_time: datetime
     departed_from_origin: bool
-    in_station: bool
     delay: int
     warning: str | None
 
@@ -75,7 +74,6 @@ class Arrival(BaseModel):
     actual_track: str | None
     arrival_time: datetime
     departed_from_origin: bool
-    in_station: bool
     delay: int
     warning: str | None
 
@@ -124,7 +122,6 @@ class TrainProgress(BaseModel):
     departure_time: datetime
     arrival_time: datetime
     departed_from_origin: bool
-    in_station: bool
     delay: int
     warning: str
     delay_reason: str | None
@@ -187,7 +184,6 @@ def get_departures(
             actual_track=d.get("binarioEffettivoPartenzaDescrizione"),
             departure_time=to_datetime(d["orarioPartenza"]),
             departed_from_origin=not d["nonPartito"],
-            in_station=d["inStazione"],
             delay=int(d["ritardo"]),
             warning=d.get("subTitle"),
         )
@@ -223,7 +219,6 @@ def get_arrivals(
             actual_track=a["binarioEffettivoArrivoDescrizione"],
             arrival_time=to_datetime(a["orarioArrivo"]),
             departed_from_origin=not a["nonPartito"],
-            in_station=a["inStazione"],
             delay=int(a["ritardo"]),
             warning=a["subTitle"],
         )
@@ -284,7 +279,6 @@ def get_train_progress(
         departure_time=to_datetime(r["orarioPartenza"]),
         arrival_time=to_datetime(r["orarioArrivo"]),
         departed_from_origin=not r["nonPartito"],
-        in_station=r["inStazione"],
         delay=int(r["ritardo"] or 0),
         warning=r["subTitle"],
         delay_reason=r["motivoRitardoPrevalente"],
