@@ -11,4 +11,80 @@
   <title>OrarioTreni</title>
 
   <p>Sito in costruzione 🚧</p>
+
+  <input
+    type="text"
+    id="search"
+    placeholder="Inserisci il nome della stazione or il numero del treno"
+    list="stations"
+  />
+
+  <datalist id="stations">
+    <option value="Tortona"></option>
+    <option value="Pavia"></option>
+    <option value="Milano Lambrate"></option>
+  </datalist>
+
+  <button type="button" id="search-button">Cerca</button>
+
+  <section>
+    <h2>Arrivi</h2>
+    <table>
+      <thead>
+        <tr>
+          <!-- Numero del treno -->
+          <th>Treno</th>
+          <!-- Stazione di partenza -->
+          <th>Origine</th>
+          <!-- Orario di arrivo -->
+          <th>Arrivo</th>
+          <!-- Ritardo in minuti -->
+          <th>Ritardo</th>
+          <!-- Binario di arrivo -->
+          <th>Binario</th>
+        </tr>
+      </thead>
+      <tbody id="arrivals"></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Partenze</h2>
+    <table>
+      <thead>
+        <tr>
+          <!-- Numero del treno -->
+          <th>Treno</th>
+          <!-- Stazione di arrivo -->
+          <th>Destinazione</th>
+          <!-- Orario di partenza -->
+          <th>Partenza</th>
+          <!-- Ritardo in minuti -->
+          <th>Ritardo</th>
+          <!-- Binario di partenza -->
+          <th>Binario</th>
+        </tr>
+      </thead>
+      <tbody id="departures"></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Andamento treno</h2>
+
+    <h3 id="train-number"></h3>
+    <p id="departure">
+      <time class="departure-time"></time> ·
+      <span class="departure-station"></span>
+    </p>
+    <p id="arrival">
+      <time class="arrival-time"></time> ·
+      <span class="arrival-station"></span>
+    </p>
+
+    <h4>Fermate</h4>
+    <ol id="stops"></ol>
+  </section>
+
+  <script src="/webapp/script.js" defer></script>
 </html>
