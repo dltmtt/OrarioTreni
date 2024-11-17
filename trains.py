@@ -385,14 +385,6 @@ if __name__ == "__main__":
         help="show progress of train NUMBER",
     )
     ap.add_argument(
-        "-s",
-        "--solutions",
-        metavar=("DEPARTURE", "ARRIVAL"),
-        type=str,
-        nargs=2,
-        help="show journey solutions from DEPARTURE to ARRIVAL",
-    )
-    ap.add_argument(
         "--date",
         metavar="YYYY-MM-DD",
         type=str,
@@ -465,7 +457,3 @@ if __name__ == "__main__":
         if (queried_train := choose_train(args.train_number)) is None:
             sys.exit(1)
         queried_train.show_progress()
-
-    if args.solutions:
-        msg = "Journey solutions not implemented yet"
-        raise NotImplementedError(msg)

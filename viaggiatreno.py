@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 description = """
-This API wrapper provides endpoints to retrieve information about trains, stations, and travel solutions from ViaggiaTreno, the official Trenitalia API.
+This is a wrapper around the ViaggiaTreno API that provides endpoints to retrieve information about trains and stations.
 The ViaggiaTreno API is not officially documented, so the endpoints and their parameters are based on reverse-engineering the [ViaggiaTreno website](http://www.viaggiatreno.it/).
 """
 tags_metadata = [
@@ -92,12 +92,6 @@ class TrainInfo(BaseModel):
     origin_enee_code: int
     departure_date: date
     origin: str
-
-
-class TravelSolution(BaseModel):
-    origin: str
-    destination: str
-    solutions: list[dict]
 
 
 class TrainStop(BaseModel):
@@ -334,46 +328,6 @@ def get_stats() -> Stats:
         trains_since_midnight=r["treniGiorno"],
         trains_running=r["treniCircolanti"],
         last_update=to_datetime(r["ultimoAggiornamento"]),
-    )
-
-
-@app.get("/search", response_model=TravelSolution, tags=["other"])
-def get_travel_solutions(
-    origin_enee_code: int,
-    destination_enee_code: int,
-    search_datetime: datetime | None = None,
-    limit: int = 10,
-) -> TravelSolution:
-    """Get travel solutions between two stations."""
-    if search_datetime is None:
-        search_datetime = datetime.now()
-
-    r = get(
-        "soluzioniViaggioNew",
-        origin_enee_code,
-        destination_enee_code,
-        search_datetime.isoformat(),
-    )
-
-    return TravelSolution(
-        origin=r["origine"],
-        destination=r["destinazione"],
-        solutions=[
-            {
-                "vehicles": [
-                    {
-                        "origin": v["origine"],
-                        "destination": v["destinazione"],
-                        "departure_time": datetime.fromisoformat(v["orarioPartenza"]),
-                        "arrival_time": datetime.fromisoformat(v["orarioArrivo"]),
-                        "category": v["categoriaDescrizione"],
-                        "number": int(v["numeroTreno"]),
-                    }
-                    for v in s["vehicles"]
-                ],
-            }
-            for s in r["soluzioni"][:limit]
-        ],
     )
 
 
