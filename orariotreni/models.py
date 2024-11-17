@@ -68,7 +68,6 @@ class TrainStop(BaseModel):
 class TrainProgress(BaseModel):
     last_update_time: datetime | None
     last_update_station: str | None
-    train_type: str
     category: str
     number: int
     departure_date: date

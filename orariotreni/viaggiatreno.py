@@ -244,7 +244,6 @@ def get_train_progress(
         last_update_station=r["stazioneUltimoRilevamento"]
         if r["stazioneUltimoRilevamento"] != "--"
         else None,
-        train_type=r["tipoTreno"],
         category=r["categoria"],
         number=int(r["numeroTreno"]),
         departure_date=utils.to_date(r["dataPartenzaTreno"]),
