@@ -50,7 +50,6 @@ class Train:
             Station(
                 s.station_id,
                 s.name,
-                self,
                 progress.stops,
             )
             for s in progress.stops
@@ -131,16 +130,13 @@ class Station:
         self,
         station_id: str,
         name: str,
-        train: Train | None = None,
         stops: list[TrainStop] | None = None,
     ) -> None:
         self.station_id: str = station_id
         self.name: str = name
 
-        if train is None or stops is None:
+        if stops is None:
             return
-
-        self.train = train
 
         stop = next((s for s in stops if s.station_id == self.station_id), None)
         if stop is None:
