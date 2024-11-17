@@ -82,7 +82,7 @@ def default_route() -> None:
 
 
 @app.get(
-    "/stations/search_fuzzy/{query}",
+    "/stations/search/{query}",
     response_model=list[BaseStation],
     tags=["stations"],
 )
