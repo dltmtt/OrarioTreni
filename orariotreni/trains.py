@@ -330,7 +330,7 @@ def show_statistics() -> None:
 
 def choose_station(station_prefix: str) -> Station | None:
     try:
-        stations: list[BaseStation] = vt.get_stations_matching_prefix(station_prefix)
+        stations: list[BaseStation] = vt.fuzzy_search_station(station_prefix)
     except vt.HTTPException:
         logging.exception("Error while fetching stations")
         return None

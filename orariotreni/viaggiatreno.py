@@ -3,9 +3,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, time
 from pathlib import Path
 
+import rapidfuzz
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from . import utils
 from .models import (
@@ -68,22 +70,58 @@ def get(endpoint: str, *args: str) -> dict | str:
     return r.json() if "json" in r.headers["Content-Type"] else r.text
 
 
+def load_stations_csv() -> list[dict]:
+    with Path.open("stations.csv", newline="", encoding="utf-8") as csvfile:
+        reader = csv.DictReader(csvfile)
+        return list(reader)
+
+
+@app.get("/")
+def default_route() -> None:
+    return FileResponse("webapp/index.html")
+
+
 @app.get(
-    "/stations/search/{prefix}",
+    "/stations/search_fuzzy/{query}",
     response_model=list[BaseStation],
     tags=["stations"],
 )
-def get_stations_matching_prefix(prefix: str) -> list[BaseStation]:
-    """Get a list of stations starting with the given text."""
-    r = get("cercaStazione", prefix)
+def fuzzy_search_station(query: str, limit: int = 10) -> list[BaseStation]:
+    """Fuzzy search for stations matching the query."""
+    stations = load_stations_csv()
 
-    if not r:
+    # Dictionary for fast lookups by long_name
+    stations_lookup = {
+        station["long_name"]: station["station_id"] for station in stations
+    }
+
+    # Fuzzy search for stations matching the query
+    matches = rapidfuzz.process.extract(
+        query,
+        stations_lookup.keys(),
+        processor=rapidfuzz.utils.default_process,
+        scorer=rapidfuzz.fuzz.token_set_ratio,
+        limit=limit + 1,  # Fetch one extra match to compare the top two matches
+    )
+
+    if not matches:
         raise HTTPException(
             status_code=204,
-            detail="No stations matching the given prefix could be found",
+            detail="No stations matching the query could be found",
         )
 
-    return [BaseStation(name=s["nomeLungo"], station_id=s["id"]) for s in r]
+    if len(matches) > 1:
+        top_score, second_score = matches[0][1], matches[1][1]
+        if top_score >= second_score + 5:
+            matches = matches[:1]  # Keep only the top match
+
+    return [
+        BaseStation(
+            station_id=stations_lookup[match[0]],
+            name=match[0],
+        )
+        for match in matches[:limit]
+    ]
 
 
 @app.get(
