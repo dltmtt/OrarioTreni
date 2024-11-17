@@ -169,8 +169,7 @@ def get_departures(
     if search_datetime is None:
         search_datetime = datetime.now()
 
-    departure_datetime = to_string(search_datetime)
-    r = get("partenze", station_id, departure_datetime)
+    r = get("partenze", station_id, search_datetime.strftime("%a %b %d %Y %H:%M:%S"))
 
     return [
         Departure(
@@ -204,8 +203,7 @@ def get_arrivals(
     if search_datetime is None:
         search_datetime = datetime.now()
 
-    arrival_datetime = to_string(search_datetime)
-    r = get("arrivi", station_id, arrival_datetime)
+    r = get("arrivi", station_id, search_datetime.strftime("%a %b %d %Y %H:%M:%S"))
 
     return [
         Arrival(
@@ -256,12 +254,14 @@ def get_train_progress(
     departure_date: date,
 ) -> TrainProgress:
     """Get the progress of a train, including its stops and delays."""
-    dep_date_ts: int = to_ms_date_timestamp(departure_date)
+    departure_date_timestamp: int = int(
+        datetime.combine(departure_date, time.min).timestamp() * 1000,
+    )
     r = get(
         "andamentoTreno",
         origin_station_id,
         train_number,
-        dep_date_ts,
+        departure_date_timestamp,
     )
 
     if not r:
@@ -325,42 +325,6 @@ def get_stats() -> Stats:
         trains_running=r["treniCircolanti"],
         last_update=to_datetime(r["ultimoAggiornamento"]),
     )
-
-
-def to_ms_date_timestamp(date_to_convert: date | datetime | int | str) -> int:
-    """Return the timestamp of the given date at midnight in milliseconds.
-
-    The date can be a date, a datetime, a timestamp in milliseconds
-    or a string in ISO 8601 format.
-    """
-    if isinstance(date_to_convert, date):
-        converted_datetime = datetime.combine(date_to_convert, time.min)
-    elif isinstance(date_to_convert, datetime):
-        converted_datetime = datetime.combine(date_to_convert.date(), time.min)
-    elif isinstance(date_to_convert, int):
-        converted_datetime = datetime.fromtimestamp(date_to_convert / 1000)
-        converted_datetime = datetime.combine(converted_datetime.date(), time.min)
-    elif isinstance(date_to_convert, str):
-        try:
-            converted_datetime = datetime.fromisoformat(date_to_convert)
-        except ValueError:
-            msg = f"Invalid date format: {date_to_convert}"
-            raise ValueError(msg) from None
-    else:
-        msg = f"Unsupported date type: {type(date_to_convert)}"
-        raise TypeError(msg)
-
-    return int(converted_datetime.timestamp() * 1000)
-
-
-def to_string(datetime_to_convert: datetime | int | str) -> str:
-    """Convert a datetime, timestamp, or ISO 8601 string to a string in the format used by ViaggiaTreno."""
-    if isinstance(datetime_to_convert, int):
-        datetime_to_convert = datetime.fromtimestamp(datetime_to_convert / 1000)
-    elif isinstance(datetime_to_convert, str):
-        datetime_to_convert = datetime.fromisoformat(datetime_to_convert)
-
-    return datetime_to_convert.strftime("%a %b %d %Y %H:%M:%S")
 
 
 def to_datetime(timestamp_ms: int | None) -> datetime | None:
