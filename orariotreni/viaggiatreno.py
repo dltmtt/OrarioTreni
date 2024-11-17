@@ -1,4 +1,7 @@
+import csv
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, time
+from pathlib import Path
 
 import requests
 from fastapi import FastAPI, HTTPException
@@ -253,3 +256,41 @@ def get_stats() -> Stats:
         trains_running=r["treniCircolanti"],
         last_update=utils.to_datetime(r["ultimoAggiornamento"]),
     )
+
+
+def dump_stations() -> None:
+    """Dump all stations to a CSV file."""
+
+    file_name = "stations.csv"
+    stations = []
+
+    with ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(get, "cercaStazione", letter)
+            for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        ]
+        for future in as_completed(futures):
+            stations.extend(future.result())
+
+    # Sort stations by name before writing
+    stations.sort(key=lambda x: utils.normalize(x["nomeLungo"]))
+
+    with Path(file_name).open("w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            [
+                "station_id",
+                "long_name",
+                "short_name",
+            ],
+        )
+        for station in stations:
+            writer.writerow(
+                [
+                    station["id"],
+                    utils.normalize(station["nomeLungo"]),
+                    utils.normalize(station["nomeBreve"]),
+                ],
+            )
+
+    print(f"Stations have been dumped to {file_name}")

@@ -15,3 +15,7 @@ def map_stop_type(stop_type: str) -> str:
         "F": "intermediate",
         "A": "arrival",
     }.get(stop_type, stop_type)
+
+
+def normalize(s: str) -> str:
+    return s.strip().replace("  ", " ")

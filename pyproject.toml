@@ -20,6 +20,7 @@ dependencies = [
 
 [project.scripts]
 orario-treni = "orariotreni.trains:main"
+dump-stations = "orariotreni.viaggiatreno:dump_stations"
 
 [dependency-groups]
 dev = [
