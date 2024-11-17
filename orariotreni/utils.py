@@ -1,4 +1,6 @@
+import csv
 from datetime import date, datetime
+from pathlib import Path
 
 
 def to_datetime(timestamp_ms: int | None) -> datetime | None:
@@ -19,3 +21,9 @@ def map_stop_type(stop_type: str) -> str:
 
 def normalize(s: str) -> str:
     return s.strip().replace("  ", " ")
+
+
+def load_stations_csv() -> list[dict]:
+    with Path.open("stations.csv", newline="", encoding="utf-8") as csvfile:
+        reader = csv.DictReader(csvfile)
+        return list(reader)
