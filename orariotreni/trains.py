@@ -11,15 +11,9 @@ from datetime import date, datetime, time, timedelta
 import inquirer
 from prettytable import PrettyTable
 
-import viaggiatreno as vt
-from ansicolors import Foreground, Style
-from viaggiatreno import (
-    Arrival,
-    BaseStation,
-    Departure,
-    TrainInfo,
-    TrainStop,
-)
+from . import viaggiatreno as vt
+from .ansicolors import Foreground, Style
+from .models import Arrival, BaseStation, Departure, TrainInfo, TrainStop
 
 
 class Train:
@@ -51,6 +45,7 @@ class Train:
                 s.station_id,
                 s.name,
                 progress.stops,
+                self,
             )
             for s in progress.stops
         ]
@@ -131,12 +126,15 @@ class Station:
         station_id: str,
         name: str,
         stops: list[TrainStop] | None = None,
+        train: Train | None = None,
     ) -> None:
         self.station_id: str = station_id
         self.name: str = name
 
-        if stops is None:
+        if stops is None or train is None:
             return
+
+        self.train = train
 
         stop = next((s for s in stops if s.station_id == self.station_id), None)
         if stop is None:
@@ -353,7 +351,8 @@ def choose_train(train_number: int) -> Train | None:
     )
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Main function with the command-line interface."""
     ap = ArgumentParser(description="Get information about trains in Italy")
 
     ap.add_argument(
@@ -456,3 +455,7 @@ if __name__ == "__main__":
         if (queried_train := choose_train(args.train_number)) is None:
             sys.exit(1)
         queried_train.show_progress()
+
+
+if __name__ == "__main__":
+    main()

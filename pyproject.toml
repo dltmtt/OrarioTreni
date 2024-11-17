@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "OrarioTreni"
 version = "0.2.0"
@@ -5,7 +9,7 @@ description = "Controlla gli orari dei treni e il loro stato in tempo reale"
 readme = "README.md"
 requires-python = ">=3.13"
 authors = [
-	{name = "Matteo Delton", email = "deltonmatteo@gmail.com"},
+    {name = "Matteo Delton", email = "deltonmatteo@gmail.com"},
 ]
 dependencies = [
     "fastapi[standard]>=0.115.5",
@@ -13,6 +17,9 @@ dependencies = [
     "prettytable>=3.12.0",
     "requests>=2.32.3",
 ]
+
+[project.scripts]
+orario-treni = "orariotreni.trains:main"
 
 [dependency-groups]
 dev = [

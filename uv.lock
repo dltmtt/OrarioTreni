@@ -329,7 +329,7 @@ wheels = [
 [[package]]
 name = "orariotreni"
 version = "0.2.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "fastapi", extra = ["standard"] },
     { name = "inquirer" },

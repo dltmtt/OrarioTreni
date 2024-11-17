@@ -3,7 +3,17 @@ from datetime import date, datetime, time
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+
+from . import utils
+from .models import (
+    Arrival,
+    BaseStation,
+    Departure,
+    Stats,
+    TrainInfo,
+    TrainProgress,
+    TrainStop,
+)
 
 description = """
 This is a wrapper around the ViaggiaTreno API that provides endpoints to retrieve information about trains and stations.
@@ -44,89 +54,6 @@ app.add_middleware(
 )
 
 BASE_URI = "http://www.viaggiatreno.it/infomobilita/resteasy/viaggiatreno"
-
-
-class Stats(BaseModel):
-    trains_since_midnight: int
-    trains_running: int
-    last_update: datetime
-
-
-class BaseStation(BaseModel):
-    name: str
-    station_id: str
-
-
-class Departure(BaseModel):
-    category: str
-    number: int
-    departure_date: date
-    origin_station_id: str
-    destination: str
-    scheduled_track: str | None
-    actual_track: str | None
-    departure_time: datetime
-    departed_from_origin: bool
-    delay: int
-    warning: str | None
-
-
-class Arrival(BaseModel):
-    category: str
-    number: int
-    departure_date: date
-    origin_station_id: str
-    origin: str
-    scheduled_track: str | None
-    actual_track: str | None
-    arrival_time: datetime
-    departed_from_origin: bool
-    delay: int
-    warning: str | None
-
-
-class TrainInfo(BaseModel):
-    number: int
-    origin_station_id: str
-    departure_date: date
-    origin: str
-
-
-class TrainStop(BaseModel):
-    station_id: int
-    name: str
-    stop_type: str
-    actual_arrival_time: datetime | None
-    actual_departure_time: datetime | None
-    arrived: bool
-    departed: bool
-    scheduled_arrival_time: datetime | None
-    scheduled_departure_time: datetime | None
-    scheduled_arrival_track: str | None
-    actual_arrival_track: str | None
-    scheduled_departure_track: str | None
-    actual_departure_track: str | None
-
-
-class TrainProgress(BaseModel):
-    last_update_time: datetime | None
-    last_update_station: str | None
-    train_type: str
-    category: str
-    number: int
-    departure_date: date
-    origin_station_id: str
-    origin: str
-    destination: str
-    destination_station_id: str
-    train_number_changes: list[dict]
-    departure_time: datetime
-    arrival_time: datetime
-    departed_from_origin: bool
-    delay: int
-    warning: str
-    delay_reason: str | None
-    stops: list[TrainStop]
 
 
 def get(endpoint: str, *args: str) -> dict | str:
@@ -175,12 +102,12 @@ def get_departures(
         Departure(
             category=d["categoriaDescrizione"].strip(),
             number=int(d["numeroTreno"]),
-            departure_date=to_date(d["dataPartenzaTreno"]),
+            departure_date=utils.to_date(d["dataPartenzaTreno"]),
             origin_station_id=d["codOrigine"],
             destination=d["destinazione"],
             scheduled_track=d.get("binarioProgrammatoPartenzaDescrizione"),
             actual_track=d.get("binarioEffettivoPartenzaDescrizione"),
-            departure_time=to_datetime(d["orarioPartenza"]),
+            departure_time=utils.to_datetime(d["orarioPartenza"]),
             departed_from_origin=not d["nonPartito"],
             delay=int(d["ritardo"]),
             warning=d.get("subTitle"),
@@ -209,12 +136,12 @@ def get_arrivals(
         Arrival(
             category=a["categoriaDescrizione"].strip(),
             number=int(a["numeroTreno"]),
-            departure_date=to_date(a["dataPartenzaTreno"]),
+            departure_date=utils.to_date(a["dataPartenzaTreno"]),
             origin_station_id=a["codOrigine"],
             origin=a["origine"],
             scheduled_track=a["binarioProgrammatoArrivoDescrizione"],
             actual_track=a["binarioEffettivoArrivoDescrizione"],
-            arrival_time=to_datetime(a["orarioArrivo"]),
+            arrival_time=utils.to_datetime(a["orarioArrivo"]),
             departed_from_origin=not a["nonPartito"],
             delay=int(a["ritardo"]),
             warning=a["subTitle"],
@@ -239,7 +166,7 @@ def get_trains_with_number(train_number: int) -> list[TrainInfo]:
     return [
         TrainInfo(
             number=int(train_info.split()[0]),
-            departure_date=to_date(int(train_info.split("|")[1].split("-")[2])),
+            departure_date=utils.to_date(int(train_info.split("|")[1].split("-")[2])),
             origin_station_id=train_info.split("|")[1].split("-")[1],
             origin=train_info.split("|")[0].split(" - ")[1],
         )
@@ -271,14 +198,14 @@ def get_train_progress(
         )
 
     return TrainProgress(
-        last_update_time=to_datetime(r["oraUltimoRilevamento"]),
+        last_update_time=utils.to_datetime(r["oraUltimoRilevamento"]),
         last_update_station=r["stazioneUltimoRilevamento"]
         if r["stazioneUltimoRilevamento"] != "--"
         else None,
         train_type=r["tipoTreno"],
         category=r["categoria"],
         number=int(r["numeroTreno"]),
-        departure_date=to_date(r["dataPartenzaTreno"]),
+        departure_date=utils.to_date(r["dataPartenzaTreno"]),
         origin_station_id=r["idOrigine"],
         origin=r["origine"],
         destination=r["destinazione"],
@@ -287,28 +214,28 @@ def get_train_progress(
             {"new_train_number": int(c["nuovoNumeroTreno"]), "station": c["stazione"]}
             for c in r["cambiNumero"]
         ],
-        departure_time=to_datetime(r["orarioPartenza"]),
-        arrival_time=to_datetime(r["orarioArrivo"]),
+        departure_time=utils.to_datetime(r["orarioPartenza"]),
+        arrival_time=utils.to_datetime(r["orarioArrivo"]),
         departed_from_origin=not r["nonPartito"],
         delay=int(r["ritardo"] or 0),
         warning=r["subTitle"],
         delay_reason=r["motivoRitardoPrevalente"],
         stops=[
-            {
-                "station_id": s["id"],
-                "name": s["stazione"],
-                "stop_type": map_stop_type(s["tipoFermata"]),
-                "actual_arrival_time": to_datetime(s["arrivoReale"]),
-                "actual_departure_time": to_datetime(s["partenzaReale"]),
-                "arrived": to_datetime(s["arrivoReale"]) is not None,
-                "departed": to_datetime(s["partenzaReale"]) is not None,
-                "scheduled_arrival_time": to_datetime(s["arrivo_teorico"]),
-                "scheduled_departure_time": to_datetime(s["partenza_teorica"]),
-                "scheduled_arrival_track": s["binarioProgrammatoArrivoDescrizione"],
-                "actual_arrival_track": s["binarioEffettivoArrivoDescrizione"],
-                "scheduled_departure_track": s["binarioProgrammatoPartenzaDescrizione"],
-                "actual_departure_track": s["binarioEffettivoPartenzaDescrizione"],
-            }
+            TrainStop(
+                station_id=s["id"],
+                name=s["stazione"],
+                stop_type=utils.map_stop_type(s["tipoFermata"]),
+                actual_arrival_time=utils.to_datetime(s["arrivoReale"]),
+                actual_departure_time=utils.to_datetime(s["partenzaReale"]),
+                arrived=utils.to_datetime(s["arrivoReale"]) is not None,
+                departed=utils.to_datetime(s["partenzaReale"]) is not None,
+                scheduled_arrival_time=utils.to_datetime(s["arrivo_teorico"]),
+                scheduled_departure_time=utils.to_datetime(s["partenza_teorica"]),
+                scheduled_arrival_track=s["binarioProgrammatoArrivoDescrizione"],
+                actual_arrival_track=s["binarioEffettivoArrivoDescrizione"],
+                scheduled_departure_track=s["binarioProgrammatoPartenzaDescrizione"],
+                actual_departure_track=s["binarioEffettivoPartenzaDescrizione"],
+            )
             for s in r["fermate"]
         ],
     )
@@ -323,21 +250,5 @@ def get_stats() -> Stats:
     return Stats(
         trains_since_midnight=r["treniGiorno"],
         trains_running=r["treniCircolanti"],
-        last_update=to_datetime(r["ultimoAggiornamento"]),
+        last_update=utils.to_datetime(r["ultimoAggiornamento"]),
     )
-
-
-def to_datetime(timestamp_ms: int | None) -> datetime | None:
-    return datetime.fromtimestamp(timestamp_ms / 1000) if timestamp_ms else None
-
-
-def to_date(timestamp_ms: int | None) -> date | None:
-    return datetime.fromtimestamp(timestamp_ms / 1000).date() if timestamp_ms else None
-
-
-def map_stop_type(stop_type: str) -> str:
-    return {
-        "P": "departure",
-        "F": "intermediate",
-        "A": "arrival",
-    }.get(stop_type, stop_type)
