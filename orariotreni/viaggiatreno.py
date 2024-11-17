@@ -32,12 +32,13 @@ tags_metadata = [
         "name": "other",
     },
 ]
+__version__ = "0.1.0"
 
 app = FastAPI(
     title="ViaggiaTreno API Wrapper",
     description=description,
     summary="An API wrapper for ViaggiaTreno, the official Trenitalia API.",
-    version="0.1.0",
+    version=__version__,
     contact={
         "name": "Matteo Delton",
         "email": "deltonmatteo@gmail.com",
