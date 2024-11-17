@@ -24,37 +24,54 @@ class Train:
         number: int,
         origin_station_id: str,
         departure_date: date,
+        detailed_info: vt.TrainProgress,
     ) -> None:
         self.number: int = number
         self.origin_station_id: str = origin_station_id
         self.departure_date: date = departure_date
 
-        try:
-            progress = vt.get_train_progress(origin_station_id, number, departure_date)
-        except vt.HTTPException:
-            return
+        self.last_update_station: str | None = detailed_info.last_update_station
+        self.last_update_time: datetime | None = detailed_info.last_update_time
 
-        self.last_update_station: str | None = progress.last_update_station
-        self.last_update_time: datetime | None = progress.last_update_time
-
-        self.category: str = progress.category
-        self.number_changes: list[dict[str, int | str]] = progress.train_number_changes
+        self.category: str = detailed_info.category
+        self.number_changes: list[dict[str, int | str]] = (
+            detailed_info.train_number_changes
+        )
 
         self.stops: list[Station] = [
             Station(
                 s.station_id,
                 s.name,
-                progress.stops,
+                detailed_info.stops,
                 self,
             )
-            for s in progress.stops
+            for s in detailed_info.stops
         ]
         self.origin: Station = self.stops[0]
         self.destination: Station = self.stops[-1]
-        self.departure_time: datetime = progress.departure_time
-        self.arrival_time: datetime = progress.arrival_time
-        self.departed_from_origin: bool = progress.departed_from_origin
-        self.delay: int = progress.delay
+        self.departure_time: datetime = detailed_info.departure_time
+        self.arrival_time: datetime = detailed_info.arrival_time
+        self.departed_from_origin: bool = detailed_info.departed_from_origin
+        self.delay: int = detailed_info.delay
+
+    @classmethod
+    def create(
+        cls,
+        number: int,
+        origin_station_id: str,
+        departure_date: date,
+    ) -> "Train | None":
+        try:
+            detailed_info = vt.get_train_progress(
+                origin_station_id,
+                number,
+                departure_date,
+            )
+        except vt.HTTPException:
+            logging.exception("Error while fetching train progress")
+            return None
+
+        return cls(number, origin_station_id, departure_date, detailed_info)
 
     def __str__(self) -> str:
         numbers = str(self.number)
@@ -204,7 +221,11 @@ class Station:
             futures = [
                 executor.submit(
                     self.process_train,
-                    Train(train.number, train.origin_station_id, train.departure_date),
+                    Train.create(
+                        train.number,
+                        train.origin_station_id,
+                        train.departure_date,
+                    ),
                     check_departures=is_departure,
                 )
                 for train in trains
@@ -310,8 +331,8 @@ def show_statistics() -> None:
 def choose_station(station_prefix: str) -> Station | None:
     try:
         stations: list[BaseStation] = vt.get_stations_matching_prefix(station_prefix)
-    except vt.HTTPException as e:
-        print(e, file=sys.stderr)
+    except vt.HTTPException:
+        logging.exception("Error while fetching stations")
         return None
 
     if len(stations) == 1:
@@ -328,12 +349,12 @@ def choose_station(station_prefix: str) -> Station | None:
 def choose_train(train_number: int) -> Train | None:
     try:
         train_info: list[TrainInfo] = vt.get_trains_with_number(train_number)
-    except vt.HTTPException as e:
-        print(e, file=sys.stderr)
+    except vt.HTTPException:
+        logging.exception("Error while fetching train info")
         return None
 
     if len(train_info) == 1:
-        return Train(
+        return Train.create(
             train_info[0].number,
             train_info[0].origin_station_id,
             train_info[0].departure_date,
@@ -344,7 +365,7 @@ def choose_train(train_number: int) -> Train | None:
         choices=[(f"{t.origin} - {t.departure_date}", t) for t in train_info],
     )
 
-    return Train(
+    return Train.create(
         chosen_train.number,
         chosen_train.origin_station_id,
         chosen_train.departure_date,
