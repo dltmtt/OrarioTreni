@@ -79,7 +79,6 @@ class TrainProgress(BaseModel):
     train_number_changes: list[dict]
     departure_time: datetime
     arrival_time: datetime
-    departed_from_origin: bool
     delay: int
     warning: str
     delay_reason: str | None

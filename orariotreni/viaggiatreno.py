@@ -258,7 +258,6 @@ def get_train_progress(
         ],
         departure_time=utils.to_datetime(r["orarioPartenza"]),
         arrival_time=utils.to_datetime(r["orarioArrivo"]),
-        departed_from_origin=not r["nonPartito"],
         delay=int(r["ritardo"] or 0),
         warning=r["subTitle"],
         delay_reason=r["motivoRitardoPrevalente"],

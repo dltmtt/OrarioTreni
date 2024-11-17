@@ -51,7 +51,6 @@ class Train:
         self.destination: Station = self.stops[-1]
         self.departure_time: datetime = detailed_info.departure_time
         self.arrival_time: datetime = detailed_info.arrival_time
-        self.departed_from_origin: bool = detailed_info.departed_from_origin
         self.delay: int = detailed_info.delay
 
     @classmethod
