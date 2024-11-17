@@ -23,20 +23,20 @@ from viaggiatreno import (
 
 
 class Train:
-    """A train is identified by the triple (number, origin_enee_code, departure_date)."""
+    """A train is identified by the triple (number, origin_station_id, departure_date)."""
 
     def __init__(
         self,
         number: int,
-        origin_enee_code: int,
+        origin_station_id: str,
         departure_date: date,
     ) -> None:
         self.number: int = number
-        self.origin_enee_code: int = origin_enee_code
+        self.origin_station_id: str = origin_station_id
         self.departure_date: date = departure_date
 
         try:
-            progress = vt.get_train_progress(origin_enee_code, number, departure_date)
+            progress = vt.get_train_progress(origin_station_id, number, departure_date)
         except vt.HTTPException:
             return
 
@@ -48,7 +48,7 @@ class Train:
 
         self.stops: list[Station] = [
             Station(
-                s.enee_code,
+                s.station_id,
                 s.name,
                 self,
                 progress.stops,
@@ -73,7 +73,7 @@ class Train:
         return f"{numbers}"
 
     def __repr__(self) -> str:
-        return f"Train({self.number}, {self.origin_enee_code}, {self.departure_date})"
+        return f"Train({self.number}, {self.origin_station_id}, {self.departure_date})"
 
     def get_formatted_delay(self) -> str:
         if self.origin.departed:
@@ -129,12 +129,12 @@ class Station:
 
     def __init__(
         self,
-        enee_code: int,
+        station_id: str,
         name: str,
         train: Train | None = None,
         stops: list[TrainStop] | None = None,
     ) -> None:
-        self.enee_code: int = enee_code
+        self.station_id: str = station_id
         self.name: str = name
 
         if train is None or stops is None:
@@ -142,7 +142,7 @@ class Station:
 
         self.train = train
 
-        stop = next((s for s in stops if s.enee_code == self.enee_code), None)
+        stop = next((s for s in stops if s.station_id == self.station_id), None)
         if stop is None:
             return
 
@@ -162,7 +162,7 @@ class Station:
         return self.name
 
     def __repr__(self) -> str:
-        return f"Station({self.enee_code}, {self.name})"
+        return f"Station({self.station_id}, {self.name})"
 
     def show_timetable(
         self,
@@ -181,7 +181,7 @@ class Station:
 
         if is_departure:
             trains: list[Departure] = vt.get_departures(
-                self.enee_code,
+                self.station_id,
                 timetable_datetime,
                 limit,
             )
@@ -197,7 +197,7 @@ class Station:
             ]
         else:
             trains: list[Arrival] = vt.get_arrivals(
-                self.enee_code,
+                self.station_id,
                 timetable_datetime,
                 limit,
             )
@@ -210,7 +210,7 @@ class Station:
             futures = [
                 executor.submit(
                     self.process_train,
-                    Train(train.number, train.origin_enee_code, train.departure_date),
+                    Train(train.number, train.origin_station_id, train.departure_date),
                     check_departures=is_departure,
                 )
                 for train in trains
@@ -223,7 +223,10 @@ class Station:
         print(table)
 
     def process_train(self, train: Train, *, check_departures: bool) -> list:
-        station = next((s for s in train.stops if s.enee_code == self.enee_code), None)
+        station = next(
+            (s for s in train.stops if s.station_id == self.station_id),
+            None,
+        )
 
         if station is None:
             msg = "Non-real-time updates not implemented yet"
@@ -318,14 +321,14 @@ def choose_station(station_prefix: str) -> Station | None:
         return None
 
     if len(stations) == 1:
-        return Station(stations[0].enee_code, stations[0].name)
+        return Station(stations[0].station_id, stations[0].name)
 
     chosen_station = inquirer.list_input(
         message="Seleziona la stazione",
         choices=[(s.name, s) for s in stations],
     )
 
-    return Station(chosen_station.enee_code, chosen_station.name)
+    return Station(chosen_station.station_id, chosen_station.name)
 
 
 def choose_train(train_number: int) -> Train | None:
@@ -338,7 +341,7 @@ def choose_train(train_number: int) -> Train | None:
     if len(train_info) == 1:
         return Train(
             train_info[0].number,
-            train_info[0].origin_enee_code,
+            train_info[0].origin_station_id,
             train_info[0].departure_date,
         )
 
@@ -349,7 +352,7 @@ def choose_train(train_number: int) -> Train | None:
 
     return Train(
         chosen_train.number,
-        chosen_train.origin_enee_code,
+        chosen_train.origin_station_id,
         chosen_train.departure_date,
     )
 
