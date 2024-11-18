@@ -1,6 +1,13 @@
 from datetime import date, datetime
+from enum import Enum
 
 from pydantic import BaseModel
+
+
+class StopType(Enum):
+    DEPARTURE = "departure"
+    INTERMEDIATE = "intermediate"
+    ARRIVAL = "arrival"
 
 
 class Stats(BaseModel):
@@ -52,7 +59,7 @@ class TrainInfo(BaseModel):
 class TrainStop(BaseModel):
     station_id: str
     name: str
-    stop_type: str
+    type: StopType
     actual_arrival_time: datetime | None
     actual_departure_time: datetime | None
     arrived: bool

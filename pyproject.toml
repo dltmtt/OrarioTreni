@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "OrarioTreni"
 version = "0.2.0"
-description = "Controlla gli orari dei treni e il loro stato in tempo reale"
+description = "Access real-time train schedules, delays, stops, tracks, and more with ease!"
 readme = "README.md"
 requires-python = ">=3.13"
 authors = [
@@ -20,8 +20,8 @@ dependencies = [
 ]
 
 [project.scripts]
-orario-treni = "orariotreni.trains:main"
-dump-stations = "orariotreni.viaggiatreno:dump_stations"
+orario-treni = "cli.main:main"
+dump-stations = "api.wrapper:dump_stations"
 
 [dependency-groups]
 dev = [
@@ -36,4 +36,4 @@ select = ["ALL"]
 ignore = ["D", "FIX", "T20", "TD", "E501", "DTZ005", "DTZ006", "DTZ007"]
 
 [tool.setuptools.packages.find]
-include = ["orariotreni*"]
+include = ["cli", "api"]

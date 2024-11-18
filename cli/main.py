@@ -11,9 +11,18 @@ from datetime import date, datetime, time, timedelta
 import inquirer
 from prettytable import PrettyTable
 
-from . import viaggiatreno as vt
+from api import wrapper as api
+from api.models import (
+    Arrival,
+    BaseStation,
+    Departure,
+    StopType,
+    TrainInfo,
+    TrainProgress,
+    TrainStop,
+)
+
 from .ansicolors import Foreground, Style
-from .models import Arrival, BaseStation, Departure, TrainInfo, TrainStop
 
 
 class Train:
@@ -24,7 +33,7 @@ class Train:
         number: int,
         origin_station_id: str,
         departure_date: date,
-        detailed_info: vt.TrainProgress,
+        detailed_info: TrainProgress,
     ) -> None:
         self.number: int = number
         self.origin_station_id: str = origin_station_id
@@ -61,12 +70,12 @@ class Train:
         departure_date: date,
     ) -> "Train | None":
         try:
-            detailed_info = vt.get_train_progress(
+            detailed_info = api.get_train_progress(
                 origin_station_id,
                 number,
                 departure_date,
             )
-        except vt.HTTPException:
+        except api.HTTPException:
             logging.exception("Error while fetching train progress")
             return None
 
@@ -121,13 +130,13 @@ class Train:
                 print(f"\n{stop.name} · {track}")
             else:
                 print(f"\n{stop.name}")
-            if stop.type in ("departure", "intermediate"):
+            if stop.type in (StopType.DEPARTURE, StopType.INTERMEDIATE):
                 print(
                     f"Dep.:\t{stop.scheduled_departure_time.strftime('%H:%M')}"
                     f"\t{stop.get_formatted_time(self.delay, check_departures=True)}",
                 )
 
-            if stop.type in ("arrival", "intermediate"):
+            if stop.type in (StopType.ARRIVAL, StopType.INTERMEDIATE):
                 print(
                     f"Arr.:\t{stop.scheduled_arrival_time.strftime('%H:%M')}"
                     f"\t{stop.get_formatted_time(self.delay, check_departures=False)}",
@@ -162,7 +171,7 @@ class Station:
         self.scheduled_arrival_track: str | None = stop.scheduled_arrival_track
         self.arrived: bool = stop.arrived
         self.departed: bool = stop.departed
-        self.type: str = stop.stop_type
+        self.type: str = stop.type
         self.actual_departure_time: datetime | None = stop.actual_departure_time
         self.scheduled_departure_time: datetime | None = stop.scheduled_departure_time
         self.actual_arrival_time: datetime | None = stop.actual_arrival_time
@@ -190,7 +199,7 @@ class Station:
         table = PrettyTable()
 
         if is_departure:
-            trains: list[Departure] = vt.get_departures(
+            trains: list[Departure] = api.get_departures(
                 self.station_id,
                 timetable_datetime,
                 limit,
@@ -206,7 +215,7 @@ class Station:
                 "Binario",
             ]
         else:
-            trains: list[Arrival] = vt.get_arrivals(
+            trains: list[Arrival] = api.get_arrivals(
                 self.station_id,
                 timetable_datetime,
                 limit,
@@ -318,7 +327,7 @@ class Station:
 
 
 def show_statistics() -> None:
-    s = vt.get_stats()
+    s = api.get_stats()
 
     print(
         f"Treni in circolazione da mezzanotte: {s.trains_since_midnight}\n"
@@ -329,8 +338,8 @@ def show_statistics() -> None:
 
 def choose_station(query: str) -> Station | None:
     try:
-        stations: list[BaseStation] = vt.fuzzy_search_station(query)
-    except vt.HTTPException:
+        stations: list[BaseStation] = api.fuzzy_search_station(query)
+    except api.HTTPException:
         logging.exception("Error while fetching stations")
         return None
 
@@ -347,8 +356,8 @@ def choose_station(query: str) -> Station | None:
 
 def choose_train(train_number: int) -> Train | None:
     try:
-        train_info: list[TrainInfo] = vt.get_trains_with_number(train_number)
-    except vt.HTTPException:
+        train_info: list[TrainInfo] = api.get_trains_with_number(train_number)
+    except api.HTTPException:
         logging.exception("Error while fetching train info")
         return None
 

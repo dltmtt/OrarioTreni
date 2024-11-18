@@ -2,6 +2,8 @@ import csv
 from datetime import date, datetime
 from pathlib import Path
 
+from .models import StopType
+
 
 def to_datetime(timestamp_ms: int | None) -> datetime | None:
     return datetime.fromtimestamp(timestamp_ms / 1000) if timestamp_ms else None
@@ -13,10 +15,10 @@ def to_date(timestamp_ms: int | None) -> date | None:
 
 def map_stop_type(stop_type: str) -> str:
     return {
-        "P": "departure",
-        "F": "intermediate",
-        "A": "arrival",
-    }.get(stop_type, stop_type)
+        "P": StopType.DEPARTURE,
+        "F": StopType.INTERMEDIATE,
+        "A": StopType.ARRIVAL,
+    }[stop_type]
 
 
 def normalize(s: str) -> str:

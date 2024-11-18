@@ -10,7 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import utils
+from api import utils
+
 from .models import (
     Arrival,
     BaseStation,
@@ -264,7 +265,7 @@ def get_train_progress(
             TrainStop(
                 station_id=s["id"],
                 name=s["stazione"],
-                stop_type=utils.map_stop_type(s["tipoFermata"]),
+                type=utils.map_stop_type(s["tipoFermata"]),
                 scheduled_departure_time=utils.to_datetime(s["partenza_teorica"]),
                 actual_departure_time=utils.to_datetime(s["partenzaReale"]),
                 departed=utils.to_datetime(s["partenzaReale"]) is not None,
