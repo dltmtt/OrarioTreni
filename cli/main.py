@@ -429,14 +429,14 @@ def choose_train(train_number: int) -> Train | None:
     metavar="N",
 )
 @click.option(
-    "--search-date",
+    "--date",
     help="Date to use for the search",
     type=click.DateTime(formats=["%Y-%m-%d"]),
     default=datetime.now().strftime("%Y-%m-%d"),
     show_default="today",
 )
 @click.option(
-    "--search-time",
+    "--time",
     help="Time to use for the search",
     type=click.DateTime(formats=["%H", "%H:%M"]),
     default=datetime.now().strftime("%H:%M"),
@@ -463,8 +463,8 @@ def main(  # noqa: PLR0913
     arrivals: str,
     number: int,
     limit: int,
-    search_date: str,
-    search_time: str,
+    date: str,
+    time: str,
     log_level: str,
     *,
     stats: bool,
@@ -474,7 +474,7 @@ def main(  # noqa: PLR0913
     if stats:
         show_stats()
 
-    search_datetime: datetime = datetime.combine(search_date.date(), search_time.time())
+    search_datetime: datetime = datetime.combine(date.date(), time.time())
 
     if departures:
         if (queried_station := choose_station(departures)) is None:
