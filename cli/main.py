@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 __version__ = "0.2.0"
 
 import logging
@@ -484,7 +482,3 @@ def main() -> None:
         if (queried_train := choose_train(args.train_number)) is None:
             sys.exit(1)
         queried_train.show_progress()
-
-
-if __name__ == "__main__":
-    main()
