@@ -331,6 +331,7 @@ name = "orariotreni"
 version = "0.2.0"
 source = { editable = "." }
 dependencies = [
+    { name = "click" },
     { name = "fastapi", extra = ["standard"] },
     { name = "inquirer" },
     { name = "prettytable" },
@@ -345,6 +346,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "click", specifier = ">=8.1.7" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115.5" },
     { name = "inquirer", specifier = ">=3.4.0" },
     { name = "prettytable", specifier = ">=3.12.0" },

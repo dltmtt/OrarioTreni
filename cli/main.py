@@ -2,25 +2,19 @@ __version__ = "0.2.0"
 
 import logging
 import sys
-from argparse import ArgumentParser, BooleanOptionalAction
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, timedelta
+from typing import TYPE_CHECKING
 
+import click
 import inquirer
 from prettytable import PrettyTable
 
 from api import wrapper as api
-from api.models import (
-    Arrival,
-    BaseStation,
-    Departure,
-    StopType,
-    TrainInfo,
-    TrainProgress,
-    TrainStop,
-)
+from api.models import StopType, TrainProgress, TrainStop
 
-from .ansicolors import Foreground, Style
+if TYPE_CHECKING:
+    from api.models import Arrival, BaseStation, Departure, TrainInfo
 
 
 class Train:
@@ -95,9 +89,9 @@ class Train:
     def get_formatted_delay(self) -> str:
         if self.origin.departed:
             if self.delay > 0:
-                return Foreground.red(f"{self.delay:+}")
+                return click.style(f"+{self.delay}", fg="red")
             if self.delay < 0:
-                return Foreground.green(f"{self.delay:+}")
+                return click.style(str(self.delay), fg="green")
             return "In orario"
 
         if self.origin.actual_departure_track is not None:
@@ -114,12 +108,12 @@ class Train:
 
         if self.last_update_station is not None and self.last_update_time is not None:
             last_update_time = self.last_update_time.strftime("%H:%M")
-            print(
-                f"{Style.DIM}Ultimo aggiornamento alle {last_update_time}"
-                f" a {self.last_update_station}{Style.NORMAL}",
+            click.secho(
+                f"Ultimo aggiornamento alle {last_update_time} a {self.last_update_station}",
+                dim=True,
             )
         else:
-            print(f"{Style.DIM}Nessun aggiornamento disponibile.{Style.NORMAL}")
+            click.secho("Nessun aggiornamento disponibile.", dim=True)
 
         for stop in self.stops:
             track = stop.get_formatted_track()
@@ -190,8 +184,9 @@ class Station:
     ) -> None:
         if timetable_datetime is None:
             timetable_datetime = datetime.now()
-        print(
-            Style.bold(f"{'Partenze da' if is_departure else 'Arrivi a'} {self.name}"),
+        click.secho(
+            f"{'Partenze da' if is_departure else 'Arrivi a'} {self.name}",
+            bold=True,
         )
 
         table = PrettyTable()
@@ -274,20 +269,20 @@ class Station:
 
         if track:
             if track == scheduled_track:
-                track = Foreground.blue(track)
+                track = click.style(track, fg="blue")
             elif scheduled_track:
-                track = Foreground.magenta(track)
+                track = click.style(track, fg="magenta")
             else:
-                track = Foreground.cyan(track)
+                track = click.style(track, fg="cyan")
         else:
             track = scheduled_track
 
         if (self.arrived or self.train.origin.actual_departure_time) and (
             self.departed or self.train.destination.actual_arrival_time
         ):
-            track = Style.dim(track)
+            track = click.style(track, dim=True)
         elif self.arrived and not self.departed:
-            track = Style.bold(track)
+            track = click.style(track, bold=True)
 
         if track is None:
             return "N/A"
@@ -311,12 +306,13 @@ class Station:
 
         if actual_time:
             if actual_time > scheduled_time + timedelta(seconds=30):
-                formatted_time = Foreground.red(actual_time.strftime("%H:%M"))
+                formatted_time = click.style(actual_time.strftime("%H:%M"), fg="red")
             else:
-                formatted_time = Foreground.green(actual_time.strftime("%H:%M"))
+                formatted_time = click.style(actual_time.strftime("%H:%M"), fg="green")
         elif delay > 0:
-            formatted_time = Foreground.yellow(
+            formatted_time = click.style(
                 (scheduled_time + timedelta(minutes=delay)).strftime("%H:%M"),
+                fg="yellow",
             )
         else:
             formatted_time = scheduled_time.strftime("%H:%M")
@@ -324,14 +320,11 @@ class Station:
         return formatted_time
 
 
-def show_statistics() -> None:
-    s = api.get_stats()
-
-    print(
-        f"Treni in circolazione da mezzanotte: {s.trains_since_midnight}\n"
-        f"Treni in circolazione ora: {s.trains_running}\n"
-        f"{Style.DIM}Ultimo aggiornamento: {s.last_update.strftime('%T')}{Style.NORMAL}",
-    )
+def show_stats() -> None:
+    stats = api.get_stats()
+    click.secho(f"Treni in circolazione da mezzanotte: {stats.trains_since_midnight}")
+    click.secho(f"Treni in circolazione ora: {stats.trains_running}")
+    click.secho(f"Ultimo aggiornamento: {stats.last_update.strftime('%T')}", dim=True)
 
 
 def choose_station(query: str) -> Station | None:
@@ -378,107 +371,99 @@ def choose_train(train_number: int) -> Train | None:
     )
 
 
-def main() -> None:
-    """Main function with the command-line interface."""
-    ap = ArgumentParser(description="Get information about trains in Italy")
+@click.command(
+    help="Access real-time train schedules, delays, stops, tracks, and more with ease!",
+    epilog=(
+        "Departures and arrivals show trains from/to the selected station "
+        "in a range from 15 minutes before to 90 minutes after the selected time."
+    ),
+)
+@click.version_option(version=__version__)
+@click.option(
+    "-d",
+    "--departures",
+    help="Show departures from a station",
+    type=click.STRING,
+)
+@click.option(
+    "-a",
+    "--arrivals",
+    help="Show arrivals to a station",
+    type=click.STRING,
+)
+@click.option(
+    "-n",
+    "--number",
+    help="Show information about a train",
+    type=click.INT,
+)
+@click.option(
+    "-l",
+    "--limit",
+    help="Limit the number of results",
+    type=click.INT,
+    default=10,
+    show_default=True,
+)
+@click.option(
+    "--search-date",
+    help="Date to use for the search",
+    type=click.DateTime(formats=["%Y-%m-%d"]),
+    default=datetime.now().strftime("%Y-%m-%d"),
+    show_default="today",
+)
+@click.option(
+    "--search-time",
+    help="Time to use for the search",
+    type=click.DateTime(formats=["%H", "%H:%M"]),
+    default=datetime.now().strftime("%H:%M"),
+    show_default="now",
+)
+@click.option(
+    "--stats",
+    is_flag=True,
+    default=False,
+    help="Show statistics about trains",
+)
+@click.option(
+    "--log-level",
+    help="Set the logging level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        case_sensitive=False,
+    ),
+    default="INFO",
+    show_default=True,
+)
+def main(  # noqa: PLR0913
+    departures: str,
+    arrivals: str,
+    number: int,
+    limit: int,
+    search_date: str,
+    search_time: str,
+    log_level: str,
+    *,
+    stats: bool,
+) -> None:
+    logging.basicConfig(level=getattr(logging, log_level.upper()))
 
-    ap.add_argument(
-        "-v",
-        "--version",
-        action="version",
-        version=f"%(prog)s {__version__}",
-    )
-    ap.add_argument(
-        "-d",
-        "--departures",
-        metavar="STATION",
-        type=str,
-        help="show departures from STATION",
-    )
-    ap.add_argument(
-        "-a",
-        "--arrivals",
-        metavar="STATION",
-        type=str,
-        help="show arrivals to STATION",
-    )
-    ap.add_argument(
-        "-n",
-        "--train-number",
-        metavar="NUMBER",
-        type=int,
-        help="show progress of train NUMBER",
-    )
-    ap.add_argument(
-        "--date",
-        metavar="YYYY-MM-DD",
-        type=str,
-        help="date to use for the other actions (defaults to today)",
-        default=datetime.now().date().strftime("%Y-%m-%d"),
-    )
-    ap.add_argument(
-        "--time",
-        metavar="HH:MM",
-        type=str,
-        help="time to use for the other actions (defaults to now)",
-        default=datetime.now().time().strftime("%H:%M"),
-    )
-    ap.add_argument(
-        "--limit",
-        metavar="N",
-        type=int,
-        help="limit the number of results to N (defaults to 10)",
-        default=10,
-    )
-    ap.add_argument(
-        "--stats",
-        action=BooleanOptionalAction,
-        help="show/don't show statistics about trains (defaults to False)",
-        default=False,
-    )
-    ap.add_argument(
-        "--log-level",
-        metavar="LEVEL",
-        type=str,
-        help="set the logging level (defaults to WARNING)",
-        default="WARNING",
-    )
+    if stats:
+        show_stats()
 
-    ap.epilog = (
-        "Departures and arrivals show trains from/to the selected "
-        "station in a range from 15 minutes before to 90 minutes after "
-        "the selected time."
-    )
+    search_datetime: datetime = datetime.combine(search_date.date(), search_time.time())
 
-    args = ap.parse_args()
-
-    if args.log_level not in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
-        print(
-            f"Invalid log level: {Foreground.red(args.log_level)} "
-            "(valid values are: DEBUG, INFO, WARNING, ERROR, CRITICAL).",
-        )
-        sys.exit(1)
-
-    logging.basicConfig(level=args.log_level)
-
-    if args.stats:
-        show_statistics()
-
-    search_date: date = datetime.strptime(args.date, "%Y-%m-%d").date()
-    search_time: time = datetime.strptime(args.time, "%H:%M").time()
-    search_datetime: datetime = datetime.combine(search_date, search_time)
-
-    if args.departures:
-        if (queried_station := choose_station(args.departures)) is None:
+    if departures:
+        if (queried_station := choose_station(departures)) is None:
             sys.exit(1)
-        queried_station.show_timetable(search_datetime, args.limit, is_departure=True)
+        queried_station.show_timetable(search_datetime, limit, is_departure=True)
 
-    if args.arrivals:
-        if (queried_station := choose_station(args.arrivals)) is None:
+    if arrivals:
+        if (queried_station := choose_station(arrivals)) is None:
             sys.exit(1)
-        queried_station.show_timetable(search_datetime, args.limit, is_departure=False)
+        queried_station.show_timetable(search_datetime, limit, is_departure=False)
 
-    if args.train_number:
-        if (queried_train := choose_train(args.train_number)) is None:
+    if number:
+        if (queried_train := choose_train(number)) is None:
             sys.exit(1)
         queried_train.show_progress()

@@ -12,6 +12,7 @@ authors = [
     {name = "Matteo Delton", email = "deltonmatteo@gmail.com"},
 ]
 dependencies = [
+    "click>=8.1.7",
     "fastapi[standard]>=0.115.5",
     "inquirer>=3.4.0",
     "prettytable>=3.12.0",
