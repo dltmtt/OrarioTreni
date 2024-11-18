@@ -8,9 +8,7 @@ version = "0.2.0"
 description = "Access real-time train schedules, delays, stops, tracks, and more with ease!"
 readme = "README.md"
 requires-python = ">=3.13"
-authors = [
-    {name = "Matteo Delton", email = "deltonmatteo@gmail.com"},
-]
+authors = [{ name = "Matteo Delton", email = "deltonmatteo@gmail.com" }]
 dependencies = [
     "click>=8.1.7",
     "fastapi[standard]>=0.115.5",
@@ -25,9 +23,7 @@ orario-treni = "cli.main:main"
 dump-stations = "api.wrapper:dump_stations"
 
 [dependency-groups]
-dev = [
-    "ruff>=0.7.3",
-]
+dev = ["ruff>=0.7.3"]
 
 [tool.ruff]
 target-version = "py312"
