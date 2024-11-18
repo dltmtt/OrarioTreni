@@ -110,6 +110,29 @@ class Train:
                 f"Ultimo aggiornamento alle {last_update_time} a {self.last_update_station}",
                 dim=True,
             )
+
+            trip_duration = (self.arrival_time - self.departure_time).total_seconds()
+            last_arrival_time = next(
+                (
+                    stop.actual_arrival_time
+                    for stop in reversed(self.stops)
+                    if stop.actual_arrival_time
+                ),
+                self.departure_time,
+            )
+            elapsed_time = (last_arrival_time - self.departure_time).total_seconds()
+            progress_percentage = (elapsed_time / trip_duration) * 100
+
+            with click.progressbar(
+                label="Progresso",
+                length=100,
+                show_percent=True,
+                fill_char="█",
+                empty_char="░",
+                width=40,
+            ) as bar:
+                bar.update(progress_percentage)
+
         else:
             click.secho("Nessun aggiornamento disponibile.", dim=True)
 
@@ -120,16 +143,16 @@ class Train:
                 click.echo(f"\n{stop.name} · {track}")
             else:
                 click.echo(f"\n{stop.name}")
-            if stop.type in (StopType.DEPARTURE, StopType.INTERMEDIATE):
-                click.echo(
-                    f"Dep.:\t{stop.scheduled_departure_time.strftime('%H:%M')}"
-                    f"\t{stop.get_formatted_time(self.delay, check_departures=True)}",
-                )
 
             if stop.type in (StopType.ARRIVAL, StopType.INTERMEDIATE):
                 click.echo(
                     f"Arr.:\t{stop.scheduled_arrival_time.strftime('%H:%M')}"
                     f"\t{stop.get_formatted_time(self.delay, check_departures=False)}",
+                )
+            if stop.type in (StopType.DEPARTURE, StopType.INTERMEDIATE):
+                click.echo(
+                    f"Dep.:\t{stop.scheduled_departure_time.strftime('%H:%M')}"
+                    f"\t{stop.get_formatted_time(self.delay, check_departures=True)}",
                 )
 
 
