@@ -16,8 +16,6 @@ from api.models import StopType, TrainProgress, TrainStop
 if TYPE_CHECKING:
     from api.models import Arrival, BaseStation, Departure, TrainInfo
 
-CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
-
 
 class Train:
     """A train is identified by the triple (number, origin_station_id, departure_date)."""
@@ -369,13 +367,13 @@ def choose_train(train_number: int) -> Train | None:
 
 
 @click.command(
-    context_settings=CONTEXT_SETTINGS,
     help="Access real-time train schedules, delays, stops, tracks, and more with ease!",
     epilog=(
         "Departures and arrivals show trains from/to the selected station "
         "in a range from 15 minutes before to 90 minutes after the selected time."
     ),
 )
+@click.help_option("-h", "--help")
 @click.version_option(version=__version__)
 @click.option(
     "-d",
