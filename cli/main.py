@@ -100,11 +100,9 @@ class Train:
         return "Non partito"
 
     def show_progress(self) -> None:
-        print(
-            f"Treno {self} · {self.get_formatted_delay()}\n"
-            f"{self.departure_time.strftime('%H:%M')} {self.origin.name}\n"
-            f"{self.arrival_time.strftime('%H:%M')} {self.destination.name}",
-        )
+        click.echo(f"Treno {self} · {self.get_formatted_delay()}")
+        click.echo(f"{self.departure_time.strftime('%H:%M')} {self.origin.name}")
+        click.echo(f"{self.arrival_time.strftime('%H:%M')} {self.destination.name}")
 
         if self.last_update_station is not None and self.last_update_time is not None:
             last_update_time = self.last_update_time.strftime("%H:%M")
@@ -119,17 +117,17 @@ class Train:
             track = stop.get_formatted_track()
 
             if track:
-                print(f"\n{stop.name} · {track}")
+                click.echo(f"\n{stop.name} · {track}")
             else:
-                print(f"\n{stop.name}")
+                click.echo(f"\n{stop.name}")
             if stop.type in (StopType.DEPARTURE, StopType.INTERMEDIATE):
-                print(
+                click.echo(
                     f"Dep.:\t{stop.scheduled_departure_time.strftime('%H:%M')}"
                     f"\t{stop.get_formatted_time(self.delay, check_departures=True)}",
                 )
 
             if stop.type in (StopType.ARRIVAL, StopType.INTERMEDIATE):
-                print(
+                click.echo(
                     f"Arr.:\t{stop.scheduled_arrival_time.strftime('%H:%M')}"
                     f"\t{stop.get_formatted_time(self.delay, check_departures=False)}",
                 )
@@ -198,7 +196,7 @@ class Station:
                 limit,
             )
             if not trains:
-                print("Nessun treno in partenza nei prossimi 90 minuti.")
+                click.echo("Nessun treno in partenza nei prossimi 90 minuti.")
                 return
             table.field_names = [
                 "Treno",
@@ -214,7 +212,7 @@ class Station:
                 limit,
             )
             if not trains:
-                print("Nessun treno in arrivo nei prossimi 90 minuti.")
+                click.echo("Nessun treno in arrivo nei prossimi 90 minuti.")
                 return
             table.field_names = ["Treno", "Origine", "Arrivo", "Ritardo", "Binario"]
 
@@ -236,7 +234,7 @@ class Station:
                 row = future.result()
                 table.add_row(row)
 
-        print(table)
+        click.echo(table)
 
     def process_train(self, train: Train, *, check_departures: bool) -> list:
         station = next(
@@ -260,7 +258,7 @@ class Station:
             station_name,
             scheduled_time,
             train.get_formatted_delay(),
-            station.get_formatted_track(),
+            station.get_formatted_track() or "N/A",
         ]
 
     def get_formatted_track(self) -> str:
@@ -283,9 +281,6 @@ class Station:
             track = click.style(track, dim=True)
         elif self.arrived and not self.departed:
             track = click.style(track, bold=True)
-
-        if track is None:
-            return "N/A"
 
         return track
 
