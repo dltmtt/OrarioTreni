@@ -327,37 +327,6 @@ wheels = [
 ]
 
 [[package]]
-name = "orariotreni"
-version = "0.2.0"
-source = { editable = "." }
-dependencies = [
-    { name = "click" },
-    { name = "fastapi", extra = ["standard"] },
-    { name = "inquirer" },
-    { name = "prettytable" },
-    { name = "rapidfuzz" },
-    { name = "requests" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "click", specifier = ">=8.1.7" },
-    { name = "fastapi", extras = ["standard"], specifier = ">=0.115.5" },
-    { name = "inquirer", specifier = ">=3.4.0" },
-    { name = "prettytable", specifier = ">=3.12.0" },
-    { name = "rapidfuzz", specifier = ">=3.10.1" },
-    { name = "requests", specifier = ">=2.32.3" },
-]
-
-[package.metadata.requires-dev]
-dev = [{ name = "ruff", specifier = ">=0.7.3" }]
-
-[[package]]
 name = "prettytable"
 version = "3.12.0"
 source = { registry = "https://pypi.org/simple" }
@@ -656,6 +625,37 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/47/57/66f061ee118f413cd22a656de622925097170b9380b30091b78ea0c6ea75/uvloop-0.21.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:bd53ecc9a0f3d87ab847503c2e1552b690362e005ab54e8a48ba97da3924c0dc", size = 4454428 },
     { url = "https://files.pythonhosted.org/packages/63/9a/0962b05b308494e3202d3f794a6e85abe471fe3cafdbcf95c2e8c713aabd/uvloop-0.21.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:a5c39f217ab3c663dc699c04cbd50c13813e31d917642d459fdcec07555cc553", size = 4660018 },
 ]
+
+[[package]]
+name = "viaggiatreno-api-wrapper"
+version = "0.2.0"
+source = { editable = "." }
+dependencies = [
+    { name = "click" },
+    { name = "fastapi", extra = ["standard"] },
+    { name = "inquirer" },
+    { name = "prettytable" },
+    { name = "rapidfuzz" },
+    { name = "requests" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = ">=8.1.7" },
+    { name = "fastapi", extras = ["standard"], specifier = ">=0.115.5" },
+    { name = "inquirer", specifier = ">=3.4.0" },
+    { name = "prettytable", specifier = ">=3.12.0" },
+    { name = "rapidfuzz", specifier = ">=3.10.1" },
+    { name = "requests", specifier = ">=2.32.3" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "ruff", specifier = ">=0.7.3" }]
 
 [[package]]
 name = "watchfiles"

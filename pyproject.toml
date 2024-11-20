@@ -3,9 +3,9 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "OrarioTreni"
+name = "viaggiatreno-api-wrapper"
 version = "0.2.0"
-description = "Access real-time train schedules, delays, stops, tracks, and more with ease!"
+description = "A wrapper for the viaggiatreno.it API"
 readme = "README.md"
 requires-python = ">=3.13"
 authors = [{ name = "Matteo Delton", email = "deltonmatteo@gmail.com" }]
@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-orario-treni = "cli.main:main"
+cli = "cli.main:main"
 dump-stations = "api.wrapper:dump_stations"
 
 [dependency-groups]
