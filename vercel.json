@@ -1,15 +1,15 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "orariotreni/viaggiatreno.py",
-      "use": "@vercel/python"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "orariotreni/viaggiatreno.py"
-    }
-  ]
+	"version": 2,
+	"builds": [
+		{
+			"src": "api/wrapper.py",
+			"use": "@vercel/python"
+		}
+	],
+	"routes": [
+		{
+			"src": "/(.*)",
+			"dest": "api/wrapper.py"
+		}
+	]
 }

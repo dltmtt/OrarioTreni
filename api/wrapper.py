@@ -7,8 +7,6 @@ import rapidfuzz
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
 from api import utils
 
@@ -70,16 +68,6 @@ def get(endpoint: str, *args: str) -> dict | str:
     r.raise_for_status()
 
     return r.json() if "json" in r.headers["Content-Type"] else r.text
-
-
-# Serve static files for the webapp
-app.mount("/webapp", StaticFiles(directory="webapp"), name="webapp")
-
-
-# Set the entry point for the webapp
-@app.get("/")
-def default_route() -> None:
-    return FileResponse("webapp/index.html")
 
 
 @app.get(
