@@ -30,7 +30,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["D", "FIX", "T20", "TD", "E501", "DTZ005", "DTZ006", "DTZ007"]
+ignore = ["D", "FIX", "T20", "TD", "E501"]
 
 [tool.setuptools.packages.find]
 include = ["cli", "api"]

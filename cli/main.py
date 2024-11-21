@@ -5,6 +5,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
+from zoneinfo import ZoneInfo
 
 import click
 import inquirer
@@ -204,7 +205,7 @@ class Station:
         is_departure: bool = True,
     ) -> None:
         if timetable_datetime is None:
-            timetable_datetime = datetime.now()
+            timetable_datetime = datetime.now(tz=ZoneInfo("Europe/Rome"))
         click.secho(
             f"{'Partenze da' if is_departure else 'Arrivi a'} {self.name}",
             bold=True,
@@ -432,14 +433,14 @@ def choose_train(train_number: int) -> Train | None:
     "--date",
     help="Date to use for the search",
     type=click.DateTime(formats=["%Y-%m-%d"]),
-    default=datetime.now().strftime("%Y-%m-%d"),
+    default=datetime.now(tz=ZoneInfo("Europe/Rome")).strftime("%Y-%m-%d"),
     show_default="today",
 )
 @click.option(
     "--time",
     help="Time to use for the search",
     type=click.DateTime(formats=["%H", "%H:%M"]),
-    default=datetime.now().strftime("%H:%M"),
+    default=datetime.now(tz=ZoneInfo("Europe/Rome")).strftime("%H:%M"),
     show_default="now",
 )
 @click.option(

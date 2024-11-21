@@ -2,6 +2,7 @@ import csv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, time
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import rapidfuzz
 import requests
@@ -125,7 +126,7 @@ def get_departures(
 ) -> list[Departure]:
     """Get the departures from a station at a certain time."""
     if search_datetime is None:
-        search_datetime = datetime.now()
+        search_datetime = datetime.now(tz=ZoneInfo("Europe/Rome"))
 
     r = get("partenze", station_id, search_datetime.strftime("%a %b %d %Y %H:%M:%S"))
 
@@ -159,7 +160,7 @@ def get_arrivals(
 ) -> list[Arrival]:
     """Get the arrivals to a station at a certain time."""
     if search_datetime is None:
-        search_datetime = datetime.now()
+        search_datetime = datetime.now(tz=ZoneInfo("Europe/Rome"))
 
     r = get("arrivi", station_id, search_datetime.strftime("%a %b %d %Y %H:%M:%S"))
 
@@ -273,7 +274,7 @@ def get_train_progress(
 @app.get("/stats", response_model=Stats, tags=["other"])
 def get_stats() -> Stats:
     """Get statistics about today's circulating trains."""
-    timestamp = int(datetime.now().timestamp() * 1000)
+    timestamp = int(datetime.now(tz=ZoneInfo("Europe/Rome")).timestamp() * 1000)
     r = get("statistiche", timestamp)
 
     return Stats(
