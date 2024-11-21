@@ -145,6 +145,10 @@ class Train:
             else:
                 click.echo(f"\n{stop.name}")
 
+            if stop.type == StopType.CANCELLED:
+                click.echo("Fermata cancellata.")
+                continue
+
             if stop.type in (StopType.ARRIVAL, StopType.INTERMEDIATE):
                 click.echo(
                     f"Arr.:\t{stop.scheduled_arrival_time.strftime('%H:%M')}"

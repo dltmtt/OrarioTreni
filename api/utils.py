@@ -27,6 +27,7 @@ def map_stop_type(stop_type: str) -> str:
         "P": StopType.DEPARTURE,
         "F": StopType.INTERMEDIATE,
         "A": StopType.ARRIVAL,
+        "": StopType.CANCELLED,
     }[stop_type]
 
 

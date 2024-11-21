@@ -8,6 +8,7 @@ class StopType(Enum):
     DEPARTURE = "departure"
     INTERMEDIATE = "intermediate"
     ARRIVAL = "arrival"
+    CANCELLED = "cancelled"
 
 
 class Stats(BaseModel):
