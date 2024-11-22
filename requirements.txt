@@ -18,7 +18,7 @@ charset-normalizer==3.4.0
     # via requests
 click==8.1.7
     # via
-    #   orariotreni (pyproject.toml)
+    #   viaggiatreno-api-wrapper (pyproject.toml)
     #   typer
     #   uvicorn
 dnspython==2.7.0
@@ -28,7 +28,7 @@ editor==1.6.6
 email-validator==2.2.0
     # via fastapi
 fastapi==0.115.5
-    # via orariotreni (pyproject.toml)
+    # via viaggiatreno-api-wrapper (pyproject.toml)
 fastapi-cli==0.0.5
     # via fastapi
 h11==0.14.0
@@ -48,7 +48,7 @@ idna==3.10
     #   httpx
     #   requests
 inquirer==3.4.0
-    # via orariotreni (pyproject.toml)
+    # via viaggiatreno-api-wrapper (pyproject.toml)
 jinja2==3.1.4
     # via fastapi
 markdown-it-py==3.0.0
@@ -58,7 +58,7 @@ markupsafe==3.0.2
 mdurl==0.1.2
     # via markdown-it-py
 prettytable==3.12.0
-    # via orariotreni (pyproject.toml)
+    # via viaggiatreno-api-wrapper (pyproject.toml)
 pydantic==2.9.2
     # via fastapi
 pydantic-core==2.23.4
@@ -71,12 +71,10 @@ python-multipart==0.0.17
     # via fastapi
 pyyaml==6.0.2
     # via uvicorn
-rapidfuzz==3.10.1
-    # via orariotreni (pyproject.toml)
 readchar==4.2.1
     # via inquirer
 requests==2.32.3
-    # via orariotreni (pyproject.toml)
+    # via viaggiatreno-api-wrapper (pyproject.toml)
 rich==13.9.4
     # via typer
 runs==1.2.2

@@ -352,7 +352,7 @@ def show_stats() -> None:
 
 def choose_station(query: str) -> Station | None:
     try:
-        stations: list[BaseStation] = api.fuzzy_search_station(query)
+        stations: list[BaseStation] = api.get_matching_stations(query)
     except api.HTTPException:
         logging.exception("Error while fetching stations")
         return None

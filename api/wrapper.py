@@ -4,7 +4,6 @@ from datetime import date, datetime, time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import rapidfuzz
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -76,42 +75,15 @@ def get(endpoint: str, *args: str) -> dict | str:
     response_model=list[BaseStation],
     tags=["stations"],
 )
-def fuzzy_search_station(query: str, limit: int = 10) -> list[BaseStation]:
-    """Fuzzy search for stations matching the query."""
+def get_matching_stations(query: str, limit: int = 10) -> list[BaseStation]:
+    """Get stations that match a query."""
     stations = utils.load_stations_csv()
 
-    # Dictionary for fast lookups by long_name
-    stations_lookup = {
-        station["long_name"]: station["station_id"] for station in stations
-    }
-
-    # Fuzzy search for stations matching the query
-    matches = rapidfuzz.process.extract(
-        query,
-        stations_lookup.keys(),
-        processor=rapidfuzz.utils.default_process,
-        scorer=rapidfuzz.fuzz.token_set_ratio,
-        limit=limit + 1,  # Fetch one extra match to compare the top two matches
-    )
-
-    if not matches:
-        raise HTTPException(
-            status_code=204,
-            detail="No stations matching the query could be found",
-        )
-
-    if len(matches) > 1:
-        top_score, second_score = matches[0][1], matches[1][1]
-        if top_score >= second_score + 5:
-            matches = matches[:1]  # Keep only the top match
-
     return [
-        BaseStation(
-            station_id=stations_lookup[match[0]],
-            name=match[0],
-        )
-        for match in matches[:limit]
-    ]
+        BaseStation(name=station["long_name"], station_id=station["station_id"])
+        for station in stations
+        if query.lower() in station["long_name"].lower()
+    ][:limit]
 
 
 @app.get(
